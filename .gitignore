@@ -3,7 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-
+*png
+*pdf
+predicts/
+evaluation_results/
 #datasets
 
 datasets/
@@ -12,7 +15,9 @@ datasets/
 
 raw/
 demo_outputs/
+outputs/
 
+processed_results/
 # C extensions
 *.so
 

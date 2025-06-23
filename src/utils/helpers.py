@@ -9,6 +9,25 @@ from typing import Dict, Any
 import json
 from datetime import datetime
 
+class ColorFormatter(logging.Formatter):
+    """
+    Custom formatter to add color to log output based on log level.
+    """
+    COLOR_CODES = {
+        logging.DEBUG: "\033[36m",    # Cyan
+        logging.INFO: "\033[32m",     # Green
+        logging.WARNING: "\033[33m",  # Yellow
+        logging.ERROR: "\033[31m",    # Red
+        logging.CRITICAL: "\033[41m\033[97m", # White on Red BG
+    }
+    RESET = "\033[0m"
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = self.COLOR_CODES.get(record.levelno, "")
+        message = super().format(record)
+        if color:
+            message = f"{color}{message}{self.RESET}"
+        return message
 
 def setup_logging(log_level: str = "INFO", 
                  log_file: str = None,
@@ -27,22 +46,18 @@ def setup_logging(log_level: str = "INFO",
     if log_format is None:
         log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
-    # Create logger
     logger = logging.getLogger("token2metrics")
     logger.setLevel(getattr(logging, log_level.upper()))
     
-    # Remove existing handlers
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
-    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(getattr(logging, log_level.upper()))
-    console_formatter = logging.Formatter(log_format)
-    console_handler.setFormatter(console_formatter)
+    color_formatter = ColorFormatter(log_format)
+    console_handler.setFormatter(color_formatter)
     logger.addHandler(console_handler)
     
-    # File handler (optional)
     if log_file:
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(getattr(logging, log_level.upper()))
@@ -73,7 +88,6 @@ def save_experiment_results(results: Dict[str, Any],
     filename = f"{experiment_name}_results_{timestamp}.json"
     filepath = output_path / filename
     
-    # Add metadata
     results_with_metadata = {
         "experiment_name": experiment_name,
         "timestamp": timestamp,
@@ -111,6 +125,7 @@ def validate_token_inputs(input_tokens: int, output_tokens: int) -> None:
     Raises:
         ValueError: If token counts are invalid
     """
+    logger = logging.getLogger("token2metrics")
     if input_tokens <= 0:
         raise ValueError(f"Input tokens must be positive, got {input_tokens}")
     
@@ -118,11 +133,11 @@ def validate_token_inputs(input_tokens: int, output_tokens: int) -> None:
         raise ValueError(f"Output tokens must be positive, got {output_tokens}")
     
     if input_tokens > 10000:
-        logging.warning(f"Input tokens ({input_tokens}) is very large, "
+        logger.warning(f"Input tokens ({input_tokens}) is very large, "
                        "prediction may be unreliable")
     
     if output_tokens > 5000:
-        logging.warning(f"Output tokens ({output_tokens}) is very large, "
+        logger.warning(f"Output tokens ({output_tokens}) is very large, "
                        "prediction may be unreliable")
 
 
@@ -193,7 +208,8 @@ class ExperimentTracker:
         self.config = config
         self.metrics = {}
         
-        logging.info(f"Started experiment: {self.experiment_name}")
+        logger = logging.getLogger("token2metrics")
+        logger.info(f"Started experiment: {self.experiment_name}")
     
     def log_metric(self, name: str, value: float, step: int = None) -> None:
         """Log a metric value."""
@@ -224,7 +240,8 @@ class ExperimentTracker:
             results, self.output_dir, self.experiment_name
         )
         
-        logging.info(f"Finished experiment: {self.experiment_name} "
+        logger = logging.getLogger("token2metrics")
+        logger.info(f"Finished experiment: {self.experiment_name} "
                     f"(Duration: {format_duration(duration)})")
         
         return output_path

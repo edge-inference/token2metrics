@@ -18,9 +18,9 @@ MODEL_CONFIG = ModelConfig(
     parameter_count="1.5B",
     expected_token_range={
         "min_input_tokens": 10,
-        "max_input_tokens": 2000,
+        "max_input_tokens": 4096,
         "min_output_tokens": 1,
-        "max_output_tokens": 1000
+        "max_output_tokens": 32768
     }
 )
 

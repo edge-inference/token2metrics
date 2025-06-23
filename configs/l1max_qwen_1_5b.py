@@ -1,5 +1,5 @@
 """
-Configuration for Qwen-14B model experiments.
+Configuration for L1Max (L1-Qwen-1.5B) model experiments.
 """
 
 from pathlib import Path
@@ -13,9 +13,9 @@ from src.core.config import (
 
 # Model configuration
 MODEL_CONFIG = ModelConfig(
-    name="DeepSeek-R1-Distill-Qwen-14B",
-    size=ModelSize.LARGE,
-    parameter_count="14B",
+    name="L1-Qwen-1_5B-Max",  
+    size=ModelSize.SMALL,
+    parameter_count="1.5B",
     expected_token_range={
         "min_input_tokens": 10,
         "max_input_tokens": 4096,
@@ -25,6 +25,13 @@ MODEL_CONFIG = ModelConfig(
 )
 
 # Hardware configurations
+SERVER_HARDWARE = HardwareConfig(
+    type=HardwareType.SERVER,
+    name="Server-GPU",
+    memory_gb=32,
+    compute_capability="8.6"
+)
+
 JETSON_HARDWARE = HardwareConfig(
     type=HardwareType.JETSON,
     name="Jetson-Orin",
@@ -60,8 +67,8 @@ POLYNOMIAL_REGRESSION_CONFIG = RegressionConfig(
 RANDOM_FOREST_CONFIG = RegressionConfig(
     type=RegressionType.RANDOM_FOREST,
     hyperparameters={
-        "n_estimators": 150,
-        "max_depth": 20,
+        "n_estimators": 100,
+        "max_depth": 10,
         "min_samples_split": 2,
         "min_samples_leaf": 1,
         "max_features": "sqrt"
@@ -72,47 +79,42 @@ RANDOM_FOREST_CONFIG = RegressionConfig(
 )
 
 # Calibration configuration
-def get_calibration_config(scale_factor=None):
-    return CalibrationConfig(
-        method=CalibrationMethod.SIMPLE_SCALING,
-        manual_scaling_factor=scale_factor
-    )
+CALIBRATION_CONFIG = CalibrationConfig(
+    method=CalibrationMethod.SIMPLE_SCALING
+)
 
 # Data configuration
 DATA_CONFIG = DataConfig(
     server_data_path=Path("datasets/server/full_mmlu_by_model.xlsx"),
     jetson_data_path=Path("datasets/tegra"),
     output_path=Path("outputs"),
-    supported_models=["DeepSeek-R1-Distill-Qwen-14B", "qwen-14b", "qwen_14b"]
+    supported_models=["L1-Qwen-1_5B-Max", "L1Max-Qwen-1_5B", "l1max-qwen-1.5b", "l1max_qwen_1_5b"]
 )
 
 # Complete experiment configurations
-def get_qwen_14b_linear_experiment(scale_factor=20):
-    return ExperimentConfig(
-        model_config=MODEL_CONFIG,
-        hardware_config=JETSON_HARDWARE,
-        regression_config=LINEAR_REGRESSION_CONFIG,
-        data_config=DATA_CONFIG,
-        calibration_config=get_calibration_config(scale_factor),
-        experiment_name="qwen_14b_linear"
-    )
+L1MAX_LINEAR_EXPERIMENT = ExperimentConfig(
+    model_config=MODEL_CONFIG,
+    hardware_config=JETSON_HARDWARE,
+    regression_config=LINEAR_REGRESSION_CONFIG,
+    data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
+    experiment_name="l1max_qwen_1_5b_linear"
+)
 
-def get_qwen_14b_polynomial_experiment(scale_factor=None):
-    return ExperimentConfig(
-        model_config=MODEL_CONFIG,
-        hardware_config=JETSON_HARDWARE,
-        regression_config=POLYNOMIAL_REGRESSION_CONFIG,
-        data_config=DATA_CONFIG,
-        calibration_config=get_calibration_config(scale_factor),
-        experiment_name="qwen_14b_polynomial"
-    )
+L1MAX_POLYNOMIAL_EXPERIMENT = ExperimentConfig(
+    model_config=MODEL_CONFIG,
+    hardware_config=JETSON_HARDWARE,
+    regression_config=POLYNOMIAL_REGRESSION_CONFIG,
+    data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
+    experiment_name="l1max_qwen_1_5b_polynomial"
+)
 
-def get_qwen_14b_rf_experiment(scale_factor=None):
-    return ExperimentConfig(
-        model_config=MODEL_CONFIG,
-        hardware_config=JETSON_HARDWARE,
-        regression_config=RANDOM_FOREST_CONFIG,
-        data_config=DATA_CONFIG,
-        calibration_config=get_calibration_config(scale_factor),
-        experiment_name="qwen_14b_rf"
-    )
+L1MAX_RF_EXPERIMENT = ExperimentConfig(
+    model_config=MODEL_CONFIG,
+    hardware_config=JETSON_HARDWARE,
+    regression_config=RANDOM_FOREST_CONFIG,
+    data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
+    experiment_name="l1max_qwen_1_5b_rf"
+)

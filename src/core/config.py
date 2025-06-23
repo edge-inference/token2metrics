@@ -114,6 +114,7 @@ class CalibrationConfig:
     """Configuration for model calibration."""
     
     method: CalibrationMethod
+    manual_scaling_factor: Optional[float] = None
     # Add other calibration parameters here if needed in the future
 
 

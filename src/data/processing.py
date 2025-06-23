@@ -31,6 +31,8 @@ class DataCleaner:
         
         # Remove records with missing critical values
         critical_cols = ["input_tokens", "output_tokens", "decode_time", "total_time_ms"]
+        if "ttft" in cleaned.columns:
+            critical_cols.append("ttft")
         initial_count = len(cleaned)
         cleaned = cleaned.dropna(subset=critical_cols)
         logger.info(f"Removed {initial_count - len(cleaned)} records with missing values")
@@ -46,14 +48,16 @@ class DataCleaner:
             (cleaned["decode_time"] > 0) & 
             (cleaned["total_time_ms"] > 0)
         ]
+        if "ttft" in cleaned.columns:
+            cleaned = cleaned[cleaned["ttft"] > 0]
         
-        # Remove extreme outliers (beyond 3 standard deviations)
+        # Remove extreme outliers (beyond 5 standard deviations)
         for col in ["decode_time", "total_time_ms"]:
             mean_val = cleaned[col].mean()
             std_val = cleaned[col].std()
-            lower_bound = mean_val - 3 * std_val
-            upper_bound = mean_val + 3 * std_val
-            
+            lower_bound = mean_val - 5 * std_val
+            upper_bound = mean_val + 5 * std_val
+
             before_count = len(cleaned)
             cleaned = cleaned[
                 (cleaned[col] >= lower_bound) & 
@@ -62,6 +66,16 @@ class DataCleaner:
             removed = before_count - len(cleaned)
             if removed > 0:
                 logger.info(f"Removed {removed} outliers from {col}")
+        if "ttft" in cleaned.columns:
+            mean_val = cleaned["ttft"].mean()
+            std_val = cleaned["ttft"].std()
+            lower_bound = mean_val - 5 * std_val
+            upper_bound = mean_val + 5 * std_val
+            before_count = len(cleaned)
+            cleaned = cleaned[(cleaned["ttft"] >= lower_bound) & (cleaned["ttft"] <= upper_bound)]
+            removed = before_count - len(cleaned)
+            if removed > 0:
+                logger.info(f"Removed {removed} outliers from ttft")
         
         logger.info(f"Final cleaned data: {len(cleaned)} records")
         return cleaned
@@ -69,7 +83,7 @@ class DataCleaner:
     @staticmethod
     def clean_jetson_data(df: pd.DataFrame) -> pd.DataFrame:
         """
-        Clean Jetson calibration data.
+        Clean Jetson calibration data (supports both CSV and server-style Excel formats).
         
         Args:
             df: Raw Jetson DataFrame
@@ -78,23 +92,22 @@ class DataCleaner:
             Cleaned DataFrame
         """
         logger.info(f"Cleaning Jetson data: {len(df)} initial records")
-        
         cleaned = df.copy()
-        
-        # Remove records with missing values
+        # Detect server-style format
+        server_cols = {"input_tokens", "output_tokens", "decode_time", "total_time_ms", "ttft"}
+        if server_cols.issubset(cleaned.columns):
+            return DataCleaner.clean_server_data(cleaned)
+        # Otherwise, use Jetson CSV logic
         critical_cols = ["output_tokens", "prefill", "decode", "inference_time"]
         initial_count = len(cleaned)
         cleaned = cleaned.dropna(subset=critical_cols)
         logger.info(f"Removed {initial_count - len(cleaned)} records with missing values")
-        
-        # Remove invalid values
         cleaned = cleaned[
             (cleaned["output_tokens"] > 0) & 
             (cleaned["prefill"] > 0) & 
             (cleaned["decode"] > 0) & 
             (cleaned["inference_time"] > 0)
         ]
-        
         logger.info(f"Final cleaned Jetson data: {len(cleaned)} records")
         return cleaned
 
@@ -138,22 +151,21 @@ class DataTransformer:
             Dictionary with target arrays
         """
         targets = {
-            "decode_latency": df["decode_time"].values,
-            "total_latency": df["total_time_ms"].values / 1000.0,  # Convert to seconds
-            # Calculate prefill latency: total time - decode time
-            "prefill_latency": (df["total_time_ms"] - df["decode_time"]).values / 1000.0 # Convert to seconds
+            "decode_latency": df["decode_time"].values / 1000.0,  
+            "total_latency": df["total_time_ms"].values / 1000.0,  
         }
-        
-        # Add derived targets
+        if "ttft" in df.columns:
+            targets["prefill_latency"] = df["ttft"].values / 1000.0
+        else:
+            targets["prefill_latency"] = (df["total_time_ms"] - df["decode_time"]).values / 1000.0
         if "tokens_per_second" in df.columns:
             targets["throughput"] = df["tokens_per_second"].values
-        
         return targets
-    
+
     @staticmethod
     def extract_features_jetson(df: pd.DataFrame) -> Dict[str, np.ndarray]:
         """
-        Extract features from Jetson data.
+        Extract features from Jetson data (supports both CSV and server-style Excel formats).
         
         Args:
             df: Cleaned Jetson DataFrame
@@ -161,28 +173,22 @@ class DataTransformer:
         Returns:
             Dictionary with feature arrays
         """
+        server_cols = {"input_tokens", "output_tokens", "decode_time", "total_time_ms", "ttft"}
+        if server_cols.issubset(df.columns):
+            return DataTransformer.extract_features_server(df)
         features = {
             "output_tokens": df["output_tokens"].values
         }
-        
-        # Add input tokens if available (estimated from prefill timing)
-        if "prefill" in df.columns:
-            # Estimate input tokens from prefill time (rough approximation)
-            features["estimated_input_tokens"] = np.maximum(
-                1, df["prefill"].values / 10  # Rough estimate
-            )
-            features["token_ratio"] = (
-                features["output_tokens"] / features["estimated_input_tokens"]
-            )
-        
+        # For Jetson CSV, estimate input tokens as 2x output tokens
+        features["estimated_input_tokens"] = 2 * features["output_tokens"]
+        features["token_ratio"] = features["output_tokens"] / features["estimated_input_tokens"]
         features["log_output_tokens"] = np.log1p(features["output_tokens"])
-        
         return features
-    
+
     @staticmethod
     def extract_targets_jetson(df: pd.DataFrame) -> Dict[str, np.ndarray]:
         """
-        Extract target variables from Jetson data.
+        Extract target variables from Jetson data (supports both CSV and server-style Excel formats).
         
         Args:
             df: Cleaned Jetson DataFrame
@@ -190,15 +196,16 @@ class DataTransformer:
         Returns:
             Dictionary with target arrays
         """
+        server_cols = {"input_tokens", "output_tokens", "decode_time", "total_time_ms", "ttft"}
+        if server_cols.issubset(df.columns):
+            return DataTransformer.extract_targets_server(df)
         targets = {
-            "decode_latency": df["decode"].values / 1000.0,  # Convert to seconds
-            "prefill_latency": df["prefill"].values / 1000.0,  # Convert to seconds
+            "decode_latency": df["decode"].values / 1000.0,
+            "prefill_latency": df["prefill"].values / 1000.0,
             "total_latency": df["inference_time"].values
         }
-        
         if "tokens_per_second" in df.columns:
             targets["throughput"] = df["tokens_per_second"].values
-        
         return targets
 
 

@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 import logging
+import json
 
 from ..core.interfaces import LatencyPredictor, RegressionStrategy, PredictionResult
 from ..core.config import ExperimentConfig, ModelSize
@@ -16,8 +17,11 @@ from ..modeling.calibration import create_calibrator
 from ..modeling.evaluator import LatencyModelEvaluator
 from ..processors.token_preprocessor import PrefillDecodePreprocessor
 from ..utils.helpers import ExperimentTracker, save_experiment_results
+from ..utils.plotting import plot_regression_fit
+from ..utils.model_summary import write_model_params_summary
+from .persistence import save_predictor, load_predictor
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("token2metrics")
 
 
 class PhaseSpecificLatencyPredictor(LatencyPredictor):
@@ -49,6 +53,9 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
         self._data_setup = None
         self._server_data: Optional[pd.DataFrame] = None
         self._jetson_data: Optional[pd.DataFrame] = None
+        
+        # Manual scaling factor for calibration
+        self.manual_scaling_factor = getattr(config.calibration_config, 'manual_scaling_factor', None)
     
     def train_models(self) -> None:
         """Train both server and calibrated Jetson models."""
@@ -149,6 +156,37 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
             self._server_model.predict(X_server).predictions
         )
         logger.info(f"Server {self.phase} model metrics: {server_metrics}")
+        # Plot regression fit
+        try:
+            tokens = server_features_df["input_tokens"].values if self.phase == "prefill" else server_features_df["output_tokens"].values
+            preds = self._server_model.predict(X_server).predictions
+            plot_regression_fit(
+                tokens,
+                server_targets,
+                preds,
+                phase=self.phase,
+                model_name=self.config.model_config.name,
+                save_path=f"outputs/fit_{self.config.model_config.name}_{self.phase}_server.png",
+                title=f"{self.config.model_config.name} {self.phase.capitalize()} Server Fit"
+            )
+        except Exception as e:
+            logger.warning(f"Could not plot server regression fit: {e}")
+        
+        # Write server model parameters to summary file
+        try:
+            model_type = self.config.regression_config.type.value.lower()
+            if hasattr(self._server_model, 'model') and hasattr(self._server_model.model, 'coef_'):
+                coefs = self._server_model.model.coef_
+                intercept = self._server_model.model.intercept_
+                write_model_params_summary(
+                    self.config.model_config.name, self.phase, model_type, coefs, intercept, is_jetson=False
+                )
+            elif hasattr(self._server_model, 'coef_'):
+                write_model_params_summary(
+                    self.config.model_config.name, self.phase, model_type, self._server_model.coef_, self._server_model.intercept_, is_jetson=False
+                )
+        except Exception as e:
+            logger.warning(f"Could not write server model parameters: {e}")
     
     def _calibrate_jetson_model(self) -> None:
         """Calibrate server model for Jetson hardware."""
@@ -168,10 +206,14 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
         
         # Prepare calibration data (tokens, latency pairs)
         if self.phase == "prefill":
-            # For prefill, we need input tokens (estimated from prefill time)
-            tokens = jetson_features_df["estimated_input_tokens"].values
+            if "input_tokens" in jetson_features_df.columns:
+                tokens = jetson_features_df["input_tokens"].values
+            elif "estimated_input_tokens" in jetson_features_df.columns:
+                tokens = jetson_features_df["estimated_input_tokens"].values
+            else:
+                raise ValueError("No input token feature available for Jetson prefill calibration (expected 'input_tokens' or 'estimated_input_tokens').")
         else:
-            # For decode, use output tokens
+            # For decode, use output_tokens
             tokens = jetson_features_df["output_tokens"].values
         
         calibration_data = np.column_stack([tokens, jetson_targets])
@@ -179,7 +221,8 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
         # Create calibrator
         self._calibrator = create_calibrator(
             calibration_method=self.config.calibration_config.method.value,
-            preprocessor=self.preprocessor # Pass the preprocessor
+            preprocessor=self.preprocessor,
+            manual_scaling_factor=self.manual_scaling_factor
         )
         self._jetson_model = self._calibrator.calibrate_model(
             self._server_model,
@@ -191,6 +234,69 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
         jetson_predictions = self._jetson_model.predict(X_jetson).predictions
         jetson_metrics = self.evaluator.evaluate_model(jetson_targets, jetson_predictions)
         logger.info(f"Calibrated {self.phase} model metrics: {jetson_metrics}")
+        # Plot regression fit
+        try:
+            tokens = jetson_features_df["input_tokens"].values if self.phase == "prefill" and "input_tokens" in jetson_features_df.columns else (
+                jetson_features_df["estimated_input_tokens"].values if self.phase == "prefill" and "estimated_input_tokens" in jetson_features_df.columns else jetson_features_df["output_tokens"].values
+            )
+            plot_regression_fit(
+                tokens,
+                jetson_targets,
+                jetson_predictions,
+                phase=self.phase,
+                model_name=self.config.model_config.name,
+                save_path=f"outputs/fit_{self.config.model_config.name}_{self.phase}_jetson.png",
+                title=f"{self.config.model_config.name} {self.phase.capitalize()} Jetson Fit"
+            )
+        except Exception as e:
+            logger.warning(f"Could not plot Jetson regression fit: {e}")
+        
+        # Write Jetson model parameters to summary file
+        try:
+            model_type = self.config.regression_config.type.value.lower()
+            jm = self._jetson_model
+            # If ScaledRegressionWrapper, extract scaling and base model params
+            if hasattr(jm, 'scaling_factor') and hasattr(jm, 'base_model'):
+                scaling = getattr(jm, 'scaling_factor', None)
+                base = getattr(jm, 'base_model', None)
+                coefs = None
+                intercept = None
+                if base is not None:
+                    if hasattr(base, 'model') and hasattr(base.model, 'coef_'):
+                        coefs = base.model.coef_
+                        intercept = base.model.intercept_
+                    elif hasattr(base, 'coef_'):
+                        coefs = base.coef_
+                        intercept = base.intercept_
+                logger.info(f"Jetson model uses scaling factor: {scaling}")
+                logger.info(f"Jetson model base coefficients: {coefs}, intercept: {intercept}")
+                write_model_params_summary(
+                    self.config.model_config.name, self.phase, model_type,
+                    coefs,
+                    intercept,
+                    is_jetson=True,
+                    scaling_factor=scaling
+                )
+            elif hasattr(jm, 'model') and hasattr(jm.model, 'coef_'):
+                coefs = jm.model.coef_
+                intercept = jm.model.intercept_
+                write_model_params_summary(
+                    self.config.model_config.name, self.phase, model_type, coefs, intercept, is_jetson=True
+                )
+            elif hasattr(jm, 'coef_'):
+                write_model_params_summary(
+                    self.config.model_config.name, self.phase, model_type, jm.coef_, jm.intercept_, is_jetson=True
+                )
+            else:
+                logger.warning("Jetson model has no coefficients or scaling factor!")
+        except Exception as e:
+            logger.warning(f"Could not write Jetson model parameters: {e}")
+            # Debug: log Jetson model type and attributes before writing summary
+            try:
+                logger.debug(f"Jetson model type: {type(self._jetson_model)}")
+                logger.debug(f"Jetson model dir: {dir(self._jetson_model)}")
+            except Exception as e:
+                logger.warning(f"Could not inspect Jetson model: {e}")
     
     def _validate_inputs(self, input_tokens: int, output_tokens: int) -> None:
         """Validate input parameters."""
@@ -233,7 +339,6 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
             "phase": self.phase
         }
         
-        # Add confidence intervals if available
         if result.confidence_intervals:
             lower, upper = result.confidence_intervals
             output[f"{self.phase}_latency_lower_bound"] = float(lower[0])
@@ -258,78 +363,82 @@ class CompletePipelineTrainer:
         # Track trained predictors
         self.predictors: Dict[str, Dict[str, PhaseSpecificLatencyPredictor]] = {}
     
+    def _normalize_model_key(self, model_size) -> str:
+        """Normalize model size to string key (e.g., '14B')."""
+        if hasattr(model_size, "value"):
+            return model_size.value
+        if isinstance(model_size, str):
+            # Accept both '14B' and 'L1MAX' as valid keys
+            return model_size
+        raise ValueError(f"Unrecognized model_size: {model_size}")
+
     def train_all_models(self, model_sizes: list = None) -> Dict[str, Any]:
         """
         Train predictors for all model sizes and phases.
         
         Args:
-            model_sizes: List of ModelSize enums to train, or None for all
+            model_sizes: List of ModelSize enums or strings to train, or None for all
             
         Returns:
             Dictionary with training results
         """
         if model_sizes is None:
             model_sizes = [ModelSize.SMALL, ModelSize.MEDIUM, ModelSize.LARGE]
-        
         logger.info(f"Training predictors for {len(model_sizes)} model sizes")
-        
         results = {}
-        
         for model_size in model_sizes:
-            logger.info(f"Training models for {model_size.value}")
-            
+            model_key = self._normalize_model_key(model_size)
+            logger.info(f"Training models for {model_key}")
             # Train both prefill and decode predictors
             model_results = self._train_model_size(model_size)
-            results[model_size.value] = model_results
-        
+            results[model_key] = model_results
         # Save consolidated results
         output_path = save_experiment_results(results, self.output_dir, "complete_training")
         logger.info(f"Training complete - results saved to {output_path}")
-        
         return results
     
-    def _train_model_size(self, model_size: ModelSize) -> Dict[str, Any]:
-        """Train both prefill and decode predictors for a model size."""
+    def _train_model_size(self, model_size) -> Dict[str, Any]:
         from configs.qwen_1_5b import QWEN_1_5B_LINEAR_EXPERIMENT
         from configs.llama_8b import LLAMA_8B_LINEAR_EXPERIMENT  
-        from configs.qwen_14b import QWEN_14B_LINEAR_EXPERIMENT
-        
-        # Get appropriate config
-        config_map = {
-            ModelSize.SMALL: QWEN_1_5B_LINEAR_EXPERIMENT,
-            ModelSize.MEDIUM: LLAMA_8B_LINEAR_EXPERIMENT,
-            ModelSize.LARGE: QWEN_14B_LINEAR_EXPERIMENT
-        }
-        
-        config = config_map[model_size]
-        
-        # Train prefill and decode predictors
-        prefill_predictor = PhaseSpecificLatencyPredictor(config, "prefill")
+        from configs.l1max_qwen_1_5b import L1MAX_LINEAR_EXPERIMENT
+        from configs.qwen_14b import get_qwen_14b_linear_experiment
+
+        if model_size == "L1MAX":
+            config = L1MAX_LINEAR_EXPERIMENT
+        elif model_size == ModelSize.SMALL:
+            config = QWEN_1_5B_LINEAR_EXPERIMENT
+        elif model_size == ModelSize.MEDIUM:
+            config = LLAMA_8B_LINEAR_EXPERIMENT
+        elif model_size == ModelSize.LARGE:
+            config = get_qwen_14b_linear_experiment(scale_factor=getattr(self, 'manual_scaling_factor', None))
+        else:
+            raise ValueError(f"Unknown model size: {model_size}")
+
+        # Only train decode predictor (skip prefill)
         decode_predictor = PhaseSpecificLatencyPredictor(config, "decode")
-        
-        # Execute training
-        prefill_predictor.train_models()
         decode_predictor.train_models()
-        
-        # Store predictors
-        model_key = model_size.value
+        model_key = self._normalize_model_key(model_size)
         self.predictors[model_key] = {
-            "prefill": prefill_predictor,
             "decode": decode_predictor
         }
-        
+        # Save predictor to disk
+        save_predictor(decode_predictor, model_key, "decode", self.output_dir)
         return {
-            "prefill_trained": True,
             "decode_trained": True,
-            "model_size": model_size.value
+            "model_size": model_key
         }
     
     def get_predictor(self, model_size: str, phase: str) -> PhaseSpecificLatencyPredictor:
-        """Get trained predictor for specific model size and phase."""
-        if model_size not in self.predictors:
-            raise ValueError(f"Model size {model_size} not trained")
-        
-        if phase not in self.predictors[model_size]:
-            raise ValueError(f"Phase {phase} not available for {model_size}")
-        
-        return self.predictors[model_size][phase]
+        """Get trained predictor for specific model size and phase. Loads from disk if not in memory."""
+        model_key = self._normalize_model_key(model_size)
+        if model_key in self.predictors and phase in self.predictors[model_key]:
+            return self.predictors[model_key][phase]
+        # Try loading from disk
+        try:
+            predictor = load_predictor(model_key, phase, self.output_dir)
+            if model_key not in self.predictors:
+                self.predictors[model_key] = {}
+            self.predictors[model_key][phase] = predictor
+            return predictor
+        except Exception as e:
+            raise ValueError(f"Model size {model_key} with phase {phase} not trained or saved: {e}")

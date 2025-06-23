@@ -61,12 +61,23 @@ class MMDataLoader(DataLoader):
         
         Args:
             model_name: Model name to load
-            
+        
         Returns:
             DataFrame with Jetson measurements
         """
         logger.info(f"Loading Jetson data for model: {model_name}")
         key = model_name.lower()
+        sheet_name = self._sheet_mapping.get(key)
+        # Check for Jetson Excel file (server-style)
+        jetson_xlsx = self.jetson_data_path / "full_mmlu_by_model_tegra.xlsx"
+        if jetson_xlsx.exists() and sheet_name:
+            try:
+                df = pd.read_excel(jetson_xlsx, sheet_name=sheet_name)
+                logger.info(f"Loaded {len(df)} Jetson records for {model_name} from Excel sheet '{sheet_name}'")
+                return df
+            except Exception as e:
+                logger.warning(f"Failed to load Jetson Excel sheet '{sheet_name}': {e}. Falling back to CSV.")
+        # Fallback to CSV
         csv_file = self._jetson_file_mapping.get(key)
         if not csv_file:
             available = list(self._canonical_names.values())
@@ -76,7 +87,7 @@ class MMDataLoader(DataLoader):
             raise FileNotFoundError(f"Jetson file not found: {filepath}")
         try:
             df = pd.read_csv(filepath, encoding='latin-1')
-            logger.info(f"Loaded {len(df)} Jetson records for {model_name}")
+            logger.info(f"Loaded {len(df)} Jetson records for {model_name} from CSV")
             return df
         except Exception as e:
             raise RuntimeError(f"Failed to load Jetson data for {model_name}: {e}")
@@ -99,18 +110,27 @@ class MMDataLoader(DataLoader):
             required_cols = [
                 "input_tokens", "output_tokens", "decode_time", "total_time_ms"
             ]
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing columns in {data_type} data: {missing_cols}")
+            return True
         elif data_type == "jetson":
-            required_cols = [
+            # Accept either Jetson CSV schema or server-style schema
+            jetson_csv_cols = [
                 "output_tokens", "prefill", "decode", "inference_time"
             ]
+            server_style_cols = [
+                "input_tokens", "output_tokens", "decode_time", "total_time_ms"
+            ]
+            has_csv = all(col in df.columns for col in jetson_csv_cols)
+            has_server = all(col in df.columns for col in server_style_cols)
+            if not (has_csv or has_server):
+                raise ValueError(
+                    f"Missing columns in {data_type} data: must have either {jetson_csv_cols} or {server_style_cols}, got {list(df.columns)}"
+                )
+            return True
         else:
             raise ValueError(f"Unknown data type: {data_type}")
-        
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            raise ValueError(f"Missing columns in {data_type} data: {missing_cols}")
-        
-        return True
     
     def _build_sheet_mapping(self) -> Dict[str, str]:
         """Get mapping from model names to Excel sheet names (all keys lowercased)."""
