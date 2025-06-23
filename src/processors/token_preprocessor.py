@@ -182,35 +182,19 @@ class PrefillDecodePreprocessor(TokenBasedPreprocessor):
     def create_feature_matrix(self, df: pd.DataFrame) -> Tuple[np.ndarray, List[str]]:
         """Create phase-specific feature matrix."""
         if self.phase == "prefill":
-            # For prefill, focus on input token features
-            preferred_features = [
-                "input_tokens",
-                "estimated_input_tokens", 
-                "log_input_tokens"
-            ]
-        else:
-            # For decode, focus on output token features
-            preferred_features = [
-                "output_tokens",
-                "log_output_tokens",
-                "token_ratio"
-            ]
-        
-        available_cols = df.columns.tolist()
-        selected_features = [
-            col for col in preferred_features 
-            if col in available_cols
-        ]
-        
-        if not selected_features:
-            # Fallback to basic token features
-            if self.phase == "prefill" and "input_tokens" in available_cols:
+            # For prefill, use only input_tokens or estimated_input_tokens (prefer input_tokens if present)
+            if "input_tokens" in df.columns:
                 selected_features = ["input_tokens"]
-            elif self.phase == "decode" and "output_tokens" in available_cols:
+            elif "estimated_input_tokens" in df.columns:
+                selected_features = ["estimated_input_tokens"]
+            else:
+                raise ValueError("No input token feature available for prefill phase.")
+        else:
+            # For decode, use only output_tokens
+            if "output_tokens" in df.columns:
                 selected_features = ["output_tokens"]
             else:
-                raise ValueError(f"No suitable features for {self.phase} phase")
-        
+                raise ValueError("No output token feature available for decode phase.")
         X = df[selected_features].values
         
         # Handle invalid values

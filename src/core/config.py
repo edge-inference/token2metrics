@@ -33,6 +33,12 @@ class RegressionType(Enum):
     XGBOOST = "xgboost"
 
 
+class CalibrationMethod(Enum):
+    """Supported calibration methods."""
+    SIMPLE_SCALING = "simple_scaling"
+    LINEAR_FIT = "linear_fit"
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     """Configuration for a specific LLM model."""
@@ -104,6 +110,14 @@ class DataConfig:
 
 
 @dataclass(frozen=True)
+class CalibrationConfig:
+    """Configuration for model calibration."""
+    
+    method: CalibrationMethod
+    # Add other calibration parameters here if needed in the future
+
+
+@dataclass(frozen=True)
 class ExperimentConfig:
     """Complete experiment configuration combining all components."""
     
@@ -111,6 +125,7 @@ class ExperimentConfig:
     hardware_config: HardwareConfig
     regression_config: RegressionConfig
     data_config: DataConfig
+    calibration_config: CalibrationConfig
     experiment_name: str
     
     def get_output_prefix(self) -> str:

@@ -182,8 +182,9 @@ class PhaseSpecificLatencyPredictor(LatencyPredictor):
             preprocessor=self.preprocessor # Pass the preprocessor
         )
         self._jetson_model = self._calibrator.calibrate_model(
-            self._server_model, 
-            calibration_data
+            self._server_model,
+            self._jetson_data,
+            self.preprocessor
         )
         
         # Evaluate calibrated model

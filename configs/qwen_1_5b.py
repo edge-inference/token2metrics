@@ -8,7 +8,7 @@ sys.path.append('.')
 
 from src.core.config import (
     ModelConfig, HardwareConfig, RegressionConfig, DataConfig, ExperimentConfig,
-    ModelSize, HardwareType, RegressionType
+    ModelSize, HardwareType, RegressionType, CalibrationConfig, CalibrationMethod
 )
 
 # Model configuration
@@ -78,6 +78,11 @@ RANDOM_FOREST_CONFIG = RegressionConfig(
     random_state=42
 )
 
+# Calibration configuration
+CALIBRATION_CONFIG = CalibrationConfig(
+    method=CalibrationMethod.SIMPLE_SCALING
+)
+
 # Data configuration
 DATA_CONFIG = DataConfig(
     server_data_path=Path("datasets/server/full_mmlu_by_model.xlsx"),
@@ -92,6 +97,7 @@ QWEN_1_5B_LINEAR_EXPERIMENT = ExperimentConfig(
     hardware_config=JETSON_HARDWARE,
     regression_config=LINEAR_REGRESSION_CONFIG,
     data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
     experiment_name="qwen_1_5b_linear"
 )
 
@@ -100,6 +106,7 @@ QWEN_1_5B_POLYNOMIAL_EXPERIMENT = ExperimentConfig(
     hardware_config=JETSON_HARDWARE,
     regression_config=POLYNOMIAL_REGRESSION_CONFIG,
     data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
     experiment_name="qwen_1_5b_polynomial"
 )
 
@@ -108,5 +115,6 @@ QWEN_1_5B_RF_EXPERIMENT = ExperimentConfig(
     hardware_config=JETSON_HARDWARE,
     regression_config=RANDOM_FOREST_CONFIG,
     data_config=DATA_CONFIG,
+    calibration_config=CALIBRATION_CONFIG,
     experiment_name="qwen_1_5b_rf"
 )

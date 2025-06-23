@@ -11,6 +11,7 @@ datasets/
 *.parquet   
 
 raw/
+demo_outputs/
 
 # C extensions
 *.so
