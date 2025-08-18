@@ -11,6 +11,8 @@ import sys
 sys.path.append('.')
 from src.modeling.pipeline import CompletePipelineTrainer
 
+plt.rcParams.update({'font.size': 16})
+
 MODEL_SIZE = "8B"
 SHEET_NAME = "DeepSeek-R1-Distill-Llama-8B"
 MARKERS = ['o', 's', '^', 'D', 'P', 'X', '*', 'v', '<', '>', 'h', 'H', 'd', 'p']

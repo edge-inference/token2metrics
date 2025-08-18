@@ -1,0 +1,21 @@
+[tool.pylint.messages_control]
+disable = "all"
+
+[tool.mypy]
+ignore_errors = true
+
+[tool.flake8]
+ignore = "*"
+
+[tool.pyright]
+# Disable type checking (remove red-underlines from Pyright)
+#   valid options: "off", "basic", "strict"
+#  "basic" for lightweight checks
+# checking off entirely.
+typeCheckingMode = "off"
+# Don’t complain about third-party libraries that lack stub packages
+reportMissingTypeStubs = false
+# Don’t warn when an import cannot be resolved (e.g. optional dependencies)
+reportMissingImports = false
+# Skip large data/archival directories from analysis
+exclude = ["archive", "datasets"]

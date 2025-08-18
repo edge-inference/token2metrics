@@ -10,6 +10,8 @@ import sys
 sys.path.append('.')
 from src.modeling.pipeline import CompletePipelineTrainer
 
+plt.rcParams.update({'font.size': 16})
+
 MODEL_NAME_TO_SIZE = {
     "DeepSeek-R1-Distill-Qwen-1_5B": "1.5B",
     "DeepSeek-R1-Distill-Llama-8B": "8B",

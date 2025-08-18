@@ -1,0 +1,72 @@
+[
+  {
+    "Model": "DSR1-Llama-8B",
+    "Model_Size": "8B",
+    "Data_Points": 33,
+    "Power_Function": "8B_constant_to_800_then_log",
+    "Power_R2": 0.8695597956659855,
+    "Power_Parameters": {
+      "constant_value": 5.6577142857142855,
+      "log_scale": 9.337806581499883,
+      "log_offset": -52.218272155944696,
+      "transition_point": 800
+    },
+    "Energy_Function": "DSR1-Llama-8B_exponential_decay",
+    "Energy_R2": 0.7557179727435493,
+    "Energy_Parameters": {
+      "function_type": "exponential_decay",
+      "coefficients": [
+        0.2037618596417348,
+        0.14845175210587422,
+        0.01900406658131384
+      ]
+    },
+    "Energy_Unit": "joules"
+  },
+  {
+    "Model": "DSR1-Qwen-1.5B",
+    "Model_Size": "1.5B",
+    "Data_Points": 33,
+    "Power_Function": "1.5B_linear",
+    "Power_R2": 0.7168226944602842,
+    "Power_Parameters": {
+      "slope": 6.68749014794967e-05,
+      "intercept": 5.499357133701591
+    },
+    "Energy_Function": "DSR1-Qwen-1.5B_exponential_decay",
+    "Energy_R2": 0.99995739263965,
+    "Energy_Parameters": {
+      "function_type": "exponential_decay",
+      "coefficients": [
+        0.07308412448027113,
+        0.03194527903289569,
+        0.0009231594757018509
+      ]
+    },
+    "Energy_Unit": "joules"
+  },
+  {
+    "Model": "DSR1-Qwen-14B",
+    "Model_Size": "14B",
+    "Data_Points": 33,
+    "Power_Function": "14B_constant_to_800_then_log",
+    "Power_R2": 0.8999386347134783,
+    "Power_Parameters": {
+      "constant_value": 10.258142857142857,
+      "log_scale": 8.772487572371094,
+      "log_offset": -40.77528971889581,
+      "transition_point": 800
+    },
+    "Energy_Function": "DSR1-Qwen-14B_exponential_decay",
+    "Energy_R2": 0.9087807315540695,
+    "Energy_Parameters": {
+      "function_type": "exponential_decay",
+      "coefficients": [
+        0.37083300132252434,
+        0.15331526827621197,
+        0.042684758270411835
+      ]
+    },
+    "Energy_Unit": "joules"
+  }
+]

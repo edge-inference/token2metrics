@@ -1,12 +1,12 @@
 """
-Extract input and output tokens from each model sheet in full_mmlu_by_model.xlsx and save to input_token_list.xlsx.
+Extract input and output tokens from each model sheet in full_mmlu_by_model_tegra.xlsx (Jetson only) and save to input_token_list.xlsx.
 Each sheet in the output will correspond to a model and contain both input_tokens and output_tokens columns.
 """
 import pandas as pd
 from pathlib import Path
 
 def main():
-    input_path = Path("datasets/server/full_mmlu_by_model.xlsx")
+    input_path = Path("datasets/tegra/full_mmlu_by_model_tegra.xlsx")
     output_path = Path("datasets/input_token_list.xlsx")
     xls = pd.ExcelFile(input_path)
     writer = pd.ExcelWriter(output_path, engine="xlsxwriter")
