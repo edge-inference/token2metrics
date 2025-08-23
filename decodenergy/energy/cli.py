@@ -171,6 +171,10 @@ def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output
             print(f" Warning: Could not determine input lengths: {e}, ignoring input filter")
     
     try:
+        # Set root outputs directory and suffixes
+        repo_root = Path(__file__).resolve().parents[5]
+        outputs_root = repo_root / 'outputs'
+        outputs_root.mkdir(parents=True, exist_ok=True)
         from energy.fitting.model_fits import ModelFitter
         
         fitter = ModelFitter(output_dir)
@@ -329,7 +333,7 @@ Examples:
         elif args.fitting:
             run_fitting_analysis(
                 correlation_file=args.correlation_file,  
-                output_dir="output/fitting",
+                output_dir=str(outputs_root / 'decode' / 'fitting'),
                 plot_individual=args.plot_individual,
                 verbose=args.verbose,
                 target_input_length=args.input

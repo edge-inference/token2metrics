@@ -110,11 +110,14 @@ def create_interpolated_lookup_table(model_data: Dict, target_tokens: List[int] 
 def main():
     """Generate lookup table from actual Excel data."""
     
+    repo_root = Path(__file__).resolve().parents[3]
+    # Prefer root outputs/prefill first
     possible_paths = [
+        str(repo_root / "outputs/prefill/energy_performance_correlation_prefill.xlsx"),
+        str(repo_root / "outputs/prefill/energy_performance_correlation.xlsx"),
         "output/energy_performance_correlation.xlsx",
         "../output/energy_performance_correlation.xlsx", 
         "energy_performance_correlation.xlsx",
-        "/home/modfi/models/token2metrics/prefillenergy/output/energy_performance_correlation.xlsx"
     ]
     
     excel_file = None
@@ -128,7 +131,7 @@ def main():
         print("📍 Please provide the correct path to the Excel file")
         return
     
-    print(f"📊 Reading data from: {excel_file}")
+    print(f"Reading data from: {excel_file}")
     
     try:
         model_data = read_energy_data_from_excel(excel_file)
@@ -143,8 +146,10 @@ def main():
         
         interpolated_lookup = create_interpolated_lookup_table(model_data)
         
-        complete_file = Path("prefill.json")
-        interpolated_file = Path("prefill_interpolated.json")
+        out_dir = repo_root / "outputs/prefill"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        complete_file = out_dir / "prefill_lookup.json"
+        interpolated_file = out_dir / "prefill_interpolated_lookup.json"
         
         with open(complete_file, 'w') as f:
             json.dump(table_lookup, f, indent=2)
@@ -152,11 +157,11 @@ def main():
         with open(interpolated_file, 'w') as f:
             json.dump(interpolated_lookup, f, indent=2)
         
-        print(f"✅ Complete data lookup saved to: {complete_file}")
-        print(f"✅ Interpolated lookup saved to: {interpolated_file}")
+        print(f"Saved complete data lookup to: {complete_file}")
+        print(f"Saved interpolated lookup to: {interpolated_file}")
         
         # Show preview of complete table structure
-        print("\n📋 Complete lookup table structure:")
+        print("\nComplete lookup table structure:")
         for model_name, data in table_lookup.items():
             print(f"{model_name}: {len(data['input_tokens'])} data points")
             print(f"  Columns: {list(data.keys())}")

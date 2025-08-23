@@ -161,7 +161,10 @@ def create_input_specific_lookup_table(model_data: Dict, target_input_length: in
 def main():
     """Generate decode energy/power lookup tables from actual Excel data."""
     
+    repo_root = Path(__file__).resolve().parents[3]
     possible_paths = [
+        str(repo_root / "outputs/decode/energy_performance_correlation_decode.xlsx"),
+        str(repo_root / "outputs/decode/energy_performance_correlation.xlsx"),
         "output/energy_performance_correlation.xlsx",
         "../output/energy_performance_correlation.xlsx", 
         "energy_performance_correlation.xlsx",
@@ -179,7 +182,7 @@ def main():
         print("📍 Please provide the correct path to the Excel file")
         return
     
-    print(f"📊 Reading decode energy data from: {excel_file}")
+    print(f"Reading decode energy data from: {excel_file}")
     
     try:
         model_data = read_decode_energy_data_from_excel(excel_file)
@@ -191,8 +194,8 @@ def main():
         print("\n🔧 Creating decode lookup tables...")
         
         # Create output directory
-        output_dir = Path("output/fitting")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        out_dir = repo_root / "outputs/decode/fitting"
+        out_dir.mkdir(parents=True, exist_ok=True)
         
         # 1. Complete data lookup table
         complete_lookup = create_decode_lookup_table_from_data(model_data)
@@ -204,9 +207,9 @@ def main():
         input_specific_lookup = create_input_specific_lookup_table(model_data, target_input_length=512)
         
         # Save all lookup tables
-        complete_file = output_dir / "decode_energy_lookup_complete.json"
-        power_scaling_file = output_dir / "decode_power_scaling_lookup.json"
-        input_specific_file = output_dir / "decode_input_512_lookup.json"
+        complete_file = out_dir / "decode_energy_lookup_complete.json"
+        power_scaling_file = out_dir / "decode_power_scaling_lookup.json"
+        input_specific_file = out_dir / "decode_input_512_lookup.json"
         
         with open(complete_file, 'w') as f:
             json.dump(complete_lookup, f, indent=2)
@@ -217,12 +220,12 @@ def main():
         with open(input_specific_file, 'w') as f:
             json.dump(input_specific_lookup, f, indent=2)
         
-        print(f"✅ Complete decode data lookup saved to: {complete_file}")
-        print(f"✅ Power scaling lookup saved to: {power_scaling_file}")
-        print(f"✅ Input-specific lookup saved to: {input_specific_file}")
+        print(f"Saved complete decode data lookup to: {complete_file}")
+        print(f"Saved power scaling lookup to: {power_scaling_file}")
+        print(f"Saved input-specific lookup to: {input_specific_file}")
         
         # Show preview of lookup table structure
-        print("\n📋 Decode lookup table structure:")
+        print("\nDecode lookup table structure:")
         for model_name, data in complete_lookup.items():
             print(f"{model_name}: {len(data['output_tokens'])} data points")
             print(f"  Columns: {list(data.keys())}")
