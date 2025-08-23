@@ -8,7 +8,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .utils import PathManager, save_dataframe, save_figure
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'decodenergy', 'energy'))
+from utils import PathManager, save_dataframe, save_figure
 
 sns.set_palette('colorblind')
 

@@ -16,7 +16,8 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from .aggregate import aggregate_energy_metrics, generate_detailed_model_summary
 from .correlate import EnergyPerformanceCorrelator
 from .insights import PowerInsightsAnalyzer
-from .utils import PathManager
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'decodenergy', 'energy'))
+from utils import PathManager
 
 
 def run_energy_analysis(base_dir: str, verbose: bool = False, prefer_gpu: bool = True) -> None:

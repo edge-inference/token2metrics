@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-JETSON_XLSX_PATH = Path("datasets/tegra/full_mmlu_by_model_tegra.xlsx")
+JETSON_XLSX_PATH = Path("../../data/mmlu/gpu/full_mmlu_by_model_tegra.xlsx")
 
 MODELS = [
     ("L1MAX",    "L1-Qwen-1_5B-Max"),

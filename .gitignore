@@ -117,3 +117,12 @@ paper_results
 *.pdf
 *.png
 general
+general/
+general/*
+.github
+.github/*
+*output*
+*outputs*
+*/outputs*
+*/output
+paper_results/

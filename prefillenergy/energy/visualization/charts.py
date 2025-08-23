@@ -7,7 +7,6 @@ import seaborn as sns
 import pandas as pd
 from typing import Dict, Any
 from .base import BasePlotter
-from ..utils import sort_models_by_size
 
 
 class PowerScalingCharts(BasePlotter):
@@ -21,7 +20,7 @@ class PowerScalingCharts(BasePlotter):
         self.setup_plot_style()
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
         
-        for model in sort_models_by_size(analysis_df['model_name'].unique()):
+        for model in analysis_df['model_name'].unique():
             model_data = analysis_df[analysis_df['model_name'] == model].sort_values('target_token_range')
             x = model_data['target_token_range']
             y = model_data['avg_power_w_mean']
@@ -39,7 +38,7 @@ class PowerScalingCharts(BasePlotter):
         ax1.set_ylabel('Average Power (W)', fontsize=12)
         ax1.legend().set_visible(False)
         
-        for model in sort_models_by_size(analysis_df['model_name'].unique()):
+        for model in analysis_df['model_name'].unique():
             model_data = analysis_df[analysis_df['model_name'] == model].sort_values('target_token_range')
             x = model_data['target_token_range']
             y = model_data['energy_per_token_mean']
@@ -54,10 +53,10 @@ class PowerScalingCharts(BasePlotter):
                 ax2.plot(x_smooth, p(x_smooth), '--', alpha=0.6)
         
         ax2.set_xlabel('Prefill Tokens', fontsize=12)
-        ax2.set_ylabel('Energy (J/token)', fontsize=12)
+        ax2.set_ylabel('Energy (mJ/token)', fontsize=12)
         ax2.legend().set_visible(False)
         
-        for model in sort_models_by_size(analysis_df['model_name'].unique()):
+        for model in analysis_df['model_name'].unique():
             model_data = analysis_df[analysis_df['model_name'] == model].sort_values('target_token_range')
             x = model_data['target_token_range']
             y = model_data['tokens_per_second_mean']
@@ -82,8 +81,9 @@ class PowerScalingCharts(BasePlotter):
         
         # Save and return
         paths = self.save_plot('power_scaling_analysis')
+        print(f"Power scaling chart saved: {paths['png']}")
         print(f"Power scaling chart (PDF): {paths['pdf']}")
-        return paths['pdf']
+        return paths['png']
 
 
 class EfficiencyHeatmap(BasePlotter):
@@ -105,9 +105,6 @@ class EfficiencyHeatmap(BasePlotter):
             aggfunc='mean'
         )
         
-        sorted_models = sort_models_by_size(power_pivot.index)
-        power_pivot = power_pivot.reindex(sorted_models)
-        
         sns.heatmap(power_pivot, annot=True, fmt='.2f', cmap='YlOrRd', 
                    ax=ax1, cbar_kws={'label': 'Average Power (W)'})
         ax1.set_xlabel('Prefill Token Range', fontsize=12)
@@ -121,15 +118,15 @@ class EfficiencyHeatmap(BasePlotter):
             aggfunc='mean'
         )
         
-        energy_pivot = energy_pivot.reindex(sorted_models)
-        
         sns.heatmap(energy_pivot, annot=True, fmt='.3f', cmap='viridis', 
-                   ax=ax2, cbar_kws={'label': 'Energy (J/token)'})
+                   ax=ax2, cbar_kws={'label': 'Energy (mJ/token)'})
         ax2.set_xlabel('Prefill Token Range', fontsize=12)
         ax2.set_ylabel('Model', fontsize=12)
         
         plt.tight_layout()
         
+        # Save and return
         paths = self.save_plot('efficiency_heatmap')
+        print(f"Efficiency heatmap saved: {paths['png']}")
         print(f"Efficiency heatmap (PDF): {paths['pdf']}")
-        return paths['pdf'] 
+        return paths['png'] 

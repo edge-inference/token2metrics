@@ -121,9 +121,17 @@ class ModelFitter:
         energy_results = None
         if 'energy_per_token' in df_sorted.columns:
             energy_per_token = df_sorted['energy_per_token'].values
-            energy_results = self.energy_fitter.fit_energy_trend(
-                input_tokens, energy_per_token, model_size, model_name
-            )
+            # Use specific model fitting functions instead of generic approach
+            if model_size == '8B':
+                energy_results = self.energy_fitter.fit_8b_energy(input_tokens, energy_per_token)
+            elif model_size == '14B':
+                energy_results = self.energy_fitter.fit_14b_energy(input_tokens, energy_per_token)
+            elif model_size == '1.5B':
+                energy_results = self.energy_fitter.fit_1_5b_energy(input_tokens, energy_per_token)
+            else:
+                energy_results = self.energy_fitter.fit_energy_trend(
+                    input_tokens, energy_per_token, model_size, model_name
+                )
         results = {
             'model_name': model_name,
             'model_size': model_size,
@@ -283,6 +291,33 @@ class ModelFitter:
         with open(output_path, 'w') as f:
             json.dump(summary, f, indent=2)
         print(f"Saved fitting summary to: {output_path}")
+
+    def generate_energy_lookup_table(self, output_file: str = None, token_counts: List[int] = None) -> Dict:
+        """
+        Generate energy per token lookup table for all fitted models.
+        
+        Args:
+            output_file: Path to save the JSON lookup table
+            token_counts: List of token counts to generate values for
+            
+        Returns:
+            Dictionary containing the lookup table
+        """
+        if output_file is None:
+            output_file = self.output_dir / "energy_lookup_table.json"
+        
+        lookup_table = self.energy_fitter.generate_energy_lookup_table(
+            self.fitted_models, token_counts
+        )
+        
+        # Save to file
+        output_path = Path(output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, 'w') as f:
+            json.dump(lookup_table, f, indent=2)
+        
+        print(f"Saved energy lookup table to: {output_path}")
+        return lookup_table
 
     def plot_individual_fits(self, results: Dict[str, Dict], output_dir: str):
         """Generate individual plots for each model."""

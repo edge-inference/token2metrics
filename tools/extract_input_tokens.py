@@ -6,8 +6,8 @@ import pandas as pd
 from pathlib import Path
 
 def main():
-    input_path = Path("datasets/tegra/full_mmlu_by_model_tegra.xlsx")
-    output_path = Path("datasets/input_token_list.xlsx")
+    input_path = Path("../../data/mmlu/gpu/full_mmlu_by_model_tegra.xlsx")
+    output_path = Path("../../data/mmlu/gpu/input_token_list.xlsx")
     xls = pd.ExcelFile(input_path)
     writer = pd.ExcelWriter(output_path, engine="xlsxwriter")
     for sheet in xls.sheet_names:
