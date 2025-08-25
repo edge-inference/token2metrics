@@ -12,10 +12,11 @@ from .utils import PathManager
 class PowerAnalyzer:
     """Core analyzer for power consumption patterns."""
     
-    def __init__(self, target_token_ranges: List[int] = None, tolerance: int = 10):
+    def __init__(self, target_token_ranges: List[int] = None, tolerance: int = 10, verbose: bool = False):
         """Initialize analyzer with target ranges and tolerance."""
         self.target_token_ranges = target_token_ranges or [3, 24, 128, 256, 384, 512, 640, 1013]
         self.tolerance = tolerance
+        self.verbose = verbose
         self.model_data = {}
         self.filtered_data = pd.DataFrame()
         self.analysis_data = pd.DataFrame()
@@ -47,8 +48,8 @@ class PowerAnalyzer:
             df_copy['model_name'] = model_name
             filtered_dfs.append(df_copy)
         self.filtered_data = pd.concat(filtered_dfs, ignore_index=True)
-        print(f"Total questions found: {len(self.filtered_data)}")
-        print(f"Output token ranges: {sorted(self.filtered_data['output_tokens'].unique())}")
+        if self.verbose:
+            print(f"Total questions found: {len(self.filtered_data)}")
         return self.filtered_data
     
     def generate_power_analysis(self) -> pd.DataFrame:

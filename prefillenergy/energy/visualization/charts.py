@@ -81,9 +81,8 @@ class PowerScalingCharts(BasePlotter):
         
         # Save and return
         paths = self.save_plot('power_scaling_analysis')
-        print(f"Power scaling chart saved: {paths['png']}")
         print(f"Power scaling chart (PDF): {paths['pdf']}")
-        return paths['png']
+        return paths['pdf']
 
 
 class EfficiencyHeatmap(BasePlotter):
@@ -127,6 +126,5 @@ class EfficiencyHeatmap(BasePlotter):
         
         # Save and return
         paths = self.save_plot('efficiency_heatmap')
-        print(f"Efficiency heatmap saved: {paths['png']}")
         print(f"Efficiency heatmap (PDF): {paths['pdf']}")
-        return paths['png'] 
+        return paths['pdf'] 

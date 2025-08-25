@@ -16,11 +16,17 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from .aggregate import aggregate_energy_metrics, generate_detailed_model_summary
 from .correlate import EnergyPerformanceCorrelator
 from .insights import PowerInsightsAnalyzer
+from .utils import PathManager
 
+try:
+    from .fitting.model_fits import ModelFitter
+    _HAS_MODEL_FITTER = True
+except ImportError:
+    _HAS_MODEL_FITTER = False
 
 def run_energy_analysis(base_dir: str, verbose: bool = False, prefer_gpu: bool = True) -> None:
     """Run basic energy analysis."""
-    print("🔋 Energy Analysis Pipeline")
+    print("Energy Analysis Pipeline")
     print("="*50)
     
     if verbose:
@@ -31,19 +37,20 @@ def run_energy_analysis(base_dir: str, verbose: bool = False, prefer_gpu: bool =
     model_summary = generate_detailed_model_summary(base_dir, prefer_gpu=prefer_gpu)
     
     if model_summary.empty:
-        print("❌ No energy data found to analyze")
+        print("✗ No energy data found to analyze")
         return
     
-    print("\n📊 Model Summary:")
+    print("\nModel Summary:")
     print(model_summary.to_string(index=False))
     
-    print(f"\n✅ Energy analysis complete!")
-    print(f"📁 Results saved to results/ directory")
+    print(f"\n✓ Energy analysis complete!")
+    output_dir = PathManager.get_output_dir()
+    print(f"Results saved to {output_dir}")
 
 
 def run_correlation_analysis(energy_dir: str, performance_file: str, verbose: bool = False) -> None:
     """Run energy-performance correlation analysis."""
-    print("🔄 Energy-Performance Correlation Analysis")
+    print("Energy-Performance Correlation Analysis")
     print("="*60)
     
     if verbose:
@@ -52,11 +59,11 @@ def run_correlation_analysis(energy_dir: str, performance_file: str, verbose: bo
     
     # Check if files exist
     if not os.path.exists(energy_dir):
-        print(f"❌ Error: Energy directory not found: {energy_dir}")
+        print(f"✗ Error: Energy directory not found: {energy_dir}")
         return
     
     if not os.path.exists(performance_file):
-        print(f"❌ Error: Performance file not found: {performance_file}")
+        print(f"✗ Error: Performance file not found: {performance_file}")
         return
     
     # Create correlator and run analysis
@@ -66,7 +73,7 @@ def run_correlation_analysis(energy_dir: str, performance_file: str, verbose: bo
     combined_df = correlator.generate_correlation_analysis()
     
     if combined_df.empty:
-        print("❌ No correlation data generated")
+        print("✗ No correlation data generated")
         return
     
     # Generate summary statistics
@@ -75,11 +82,11 @@ def run_correlation_analysis(energy_dir: str, performance_file: str, verbose: bo
     # Save results
     output_path = correlator.save_correlation_results(combined_df, summary_df)
     
-    print("\n🎉 Energy-Performance Correlation Complete!")
+    print("\n✓ Energy-Performance Correlation Complete!")
     print("="*60)
-    print(f"📊 Generated comprehensive analysis with {len(combined_df)} question-level correlations")
-    print(f"📁 Results saved to: {output_path}")
-    print("\n💡 The Excel file contains:")
+    print(f"Generated comprehensive analysis with {len(combined_df)} question-level correlations")
+    print(f"Results saved to: {output_path}")
+    print("\nThe Excel file contains:")
     print("  • Model Summary: Overall efficiency rankings")
     print("  • Individual Model Sheets: Question-level data")
     print("  • Subject Analysis: Performance by subject")
@@ -93,34 +100,34 @@ def run_insights_analysis(correlation_file: str = None, verbose: bool = False) -
         correlation_file: Path to correlation results Excel file (auto-detected if None)
         verbose: Enable verbose output
     """
-    print("🔍 Power Insights Analysis")
+    print("Power Insights Analysis")
     print("="*40)
     
     if not correlation_file:
-        output_dir = Path('./output')
+        output_dir = PathManager.get_output_dir()
         if not output_dir.exists():
-            print("❌ Error: output directory not found")
+            print("✗ Error: output directory not found")
             print("Please run correlation analysis first: python -m energy.cli --correlate")
             return
         
         correlation_files = list(output_dir.glob('energy_performance_correlation*.xlsx'))
         if not correlation_files:
-            print("❌ Error: No correlation files found")
+            print("✗ Error: No correlation files found")
             print("Please run correlation analysis first: python -m energy.cli --correlate")
             return
         
         correlation_file = str(sorted(correlation_files)[-1])
-        print(f"🔍 Auto-detected correlation file: {correlation_file}")
+        print(f"Auto-detected correlation file: {correlation_file}")
     
     if verbose:
         print(f"Correlation file: {correlation_file}")
     
-    analyzer = PowerInsightsAnalyzer()
+    analyzer = PowerInsightsAnalyzer(verbose=verbose)
     results = analyzer.run_complete_analysis(correlation_file)
     
     if results:
-        print(f"\n💡 Generated insights for {len(results.get('insights', {}).get('model_efficiency_rankings', []))} models")
-        print("📁 Check insight_charts/ folder for visualizations")
+        print(f"\n✓ Generated insights for {len(results.get('insights', {}).get('model_efficiency_rankings', []))} models")
+        print("Check insight_charts/ folder for visualizations")
 
 
 def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output/fitting", 
@@ -140,18 +147,18 @@ def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output
                 break
         
         if not energy_results_dir:
-            print("❌ Error: No energy results directory found")
+            print("✗ Error: No energy results directory found")
             print("Please run correlation analysis first: python -m energy.cli --correlate")
             return
         
         correlation_files = list(energy_results_dir.glob('energy_performance_correlation*.xlsx'))
         if not correlation_files:
-            print("❌ Error: No correlation files found")
+            print("✗ Error: No correlation files found")
             print("Please run correlation analysis first: python -m energy.cli --correlate")
             return
         
         correlation_file = str(sorted(correlation_files)[-1])
-        print(f"🔍 Auto-detected input file: {correlation_file}")
+        print(f"Auto-detected input file: {correlation_file}")
     
     if verbose:
         print(f"Correlation file: {correlation_file}")
@@ -171,12 +178,10 @@ def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output
             print(f" Warning: Could not determine input lengths: {e}, ignoring input filter")
     
     try:
-        # Set root outputs directory and suffixes
-        repo_root = Path(__file__).resolve().parents[5]
-        outputs_root = repo_root / 'outputs'
-        outputs_root.mkdir(parents=True, exist_ok=True)
-        from energy.fitting.model_fits import ModelFitter
-        
+        if not _HAS_MODEL_FITTER:
+            print("✗ ModelFitter not available")
+            return
+            
         fitter = ModelFitter(output_dir)
         
         # Fit all models using correlation file
@@ -184,10 +189,10 @@ def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output
         results = fitter.fit_all_models(correlation_file, input_length_filter=actual_input_length)
         
         if not results:
-            print("❌ No models were successfully fitted!")
+            print("✗ No models were successfully fitted!")
             return
         
-        print(f"\n✅ Successfully fitted {len(results)} models:")
+        print(f"\n✓ Successfully fitted {len(results)} models:")
         for model_name, model_results in results.items():
             power_r2 = model_results.get('power_fit', {}).get('r2_score', 0.0)
             energy_r2 = model_results.get('energy_fit', {}).get('r2_score', 0.0) if model_results.get('energy_fit') else 0.0
@@ -207,14 +212,14 @@ def run_fitting_analysis(correlation_file: str = None, output_dir: str = "output
         summary_file = output_path / "fitting_summary.json"
         fitter.save_fitting_summary(results, str(summary_file))
         
-        print("\n🎉 Fitting Analysis Complete!")
+        print("\n✓ Fitting Analysis Complete!")
         print("="*50)
-        print(f"📁 Results saved to: {output_path}")
-        print(f"📊 Summary file: {summary_file}")
+        print(f"Results saved to: {output_path}")
+        print(f"Summary file: {summary_file}")
         print(f"📈 Comparison plots: {output_path / 'power_consumption_fits.pdf'} & {output_path / 'energy_j_token_fits.pdf'}")
         
     except Exception as e:
-        print(f"❌ Error during fitting analysis: {e}")
+        print(f"✗ Error during fitting analysis: {e}")
         if verbose:
             import traceback
             traceback.print_exc()
@@ -328,12 +333,14 @@ Examples:
     args = parser.parse_args()
     
     try:
+        
         if args.insights:
             run_insights_analysis(args.correlation_file, args.verbose)
         elif args.fitting:
+            output_dir = PathManager.get_output_dir() / 'fitting'
             run_fitting_analysis(
                 correlation_file=args.correlation_file,  
-                output_dir=str(outputs_root / 'decode' / 'fitting'),
+                output_dir=str(output_dir),
                 plot_individual=args.plot_individual,
                 verbose=args.verbose,
                 target_input_length=args.input
@@ -345,13 +352,13 @@ Examples:
                     excel_files = list(processed_results_dir.glob('all_results_by_model*.xlsx'))
                     if excel_files:
                         args.performance_file = str(sorted(excel_files)[-1])
-                        print(f"🔍 Auto-detected performance file: {args.performance_file}")
+                        print(f"Auto-detected performance file: {args.performance_file}")
                     else:
-                        print("❌ Error: No performance file specified and none found in ../datasets/synthetic/gpu/decode/fine/processed_results/")
+                        print("✗ Error: No performance file specified and none found in ../datasets/synthetic/gpu/decode/fine/processed_results/")
                         print("Use --performance-file to specify the path to your performance results Excel file")
                         sys.exit(1)
                 else:
-                    print("❌ Error: No performance file specified and ../datasets/synthetic/gpu/decode/fine/processed_results/ directory not found")
+                    print("✗ Error: No performance file specified and ../datasets/synthetic/gpu/decode/fine/processed_results/ directory not found")
                     print("Use --performance-file to specify the path to your performance results Excel file")
                     sys.exit(1)
             
@@ -361,10 +368,10 @@ Examples:
             run_energy_analysis(args.base_dir, args.verbose, prefer_gpu=prefer_gpu)
             
     except KeyboardInterrupt:
-        print("\n⚠️  Analysis interrupted by user")
+        print("\n! Analysis interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Analysis failed: {e}")
+        print(f"\n✗ Analysis failed: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()

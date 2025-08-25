@@ -72,11 +72,9 @@ def plot_combined(coeffs_dict, xls):
             continue
         tokens = df["input_tokens"].values
         prefill = df["ttft"].values / 1000.0
-        # Cap at max input tokens of 650
-        mask = tokens <= 650
+        mask = tokens <= 1024
         tokens = tokens[mask]
         prefill = prefill[mask]
-        # Subsample 5-10 points per cluster using quantile binning
         n_clusters = 8
         df_sub = pd.DataFrame({'tokens': tokens, 'prefill': prefill})
         df_sub['bin'], bins = pd.qcut(df_sub['tokens'], q=n_clusters, retbins=True, labels=False, duplicates='drop')
@@ -132,11 +130,9 @@ def plot_combined_1_5B(coeffs_dict, xls):
             continue
         tokens = df["input_tokens"].values
         prefill = df["ttft"].values / 1000.0
-        # Cap at max input tokens of 650
-        mask = tokens <= 650
+        mask = tokens <= 1024
         tokens = tokens[mask]
         prefill = prefill[mask]
-        # Subsample 5-10 points per cluster using quantile binning
         n_clusters = 8
         df_sub = pd.DataFrame({'tokens': tokens, 'prefill': prefill})
         df_sub['bin'], bins = pd.qcut(df_sub['tokens'], q=n_clusters, retbins=True, labels=False, duplicates='drop')

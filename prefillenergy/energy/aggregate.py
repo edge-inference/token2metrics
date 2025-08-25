@@ -1,15 +1,16 @@
 """
 Energy aggregation and analysis functions.
 """
-import os
-import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 import pandas as pd
 from .energy import EnergyProcessor
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'decodenergy', 'energy'))
-from utils import PathManager, save_dataframe, collect_energy_files, sort_models_by_size
+from .utils import (
+    PathManager,
+    save_dataframe,
+    collect_energy_files,
+    sort_models_by_size,
+)
 
 
 def aggregate_energy_metrics(base_dir: str, prefer_gpu: bool = True) -> pd.DataFrame:

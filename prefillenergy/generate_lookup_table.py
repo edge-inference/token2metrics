@@ -23,29 +23,31 @@ def read_energy_data_from_excel(excel_file: str) -> Dict:
     if not excel_path.exists():
         raise FileNotFoundError(f"Excel file not found: {excel_path}")
     
-    # Read all sheets from the Excel file
     all_sheets = pd.read_excel(excel_path, sheet_name=None)
     
     model_data = {}
     
+    skip_sheets = {'Model_Summary', 'Subject_Analysis'}
+    
     for sheet_name, df in all_sheets.items():
+        if sheet_name in skip_sheets:
+            continue
+            
         required_columns = ['ttft_ms', 'tokens_per_second', 'input_tokens', 
                           'avg_power_w', 'total_energy_j', 'energy_per_token']
         
         if not all(col in df.columns for col in required_columns):
-            print(f"⚠️  Skipping sheet '{sheet_name}' - missing required columns")
             continue
         
         df_clean = df[required_columns].dropna()
         
         if len(df_clean) == 0:
-            print(f"⚠️  No valid data in sheet '{sheet_name}'")
             continue
         
         df_clean = df_clean.sort_values('input_tokens')
         
         model_data[sheet_name] = df_clean
-        print(f"✅ Loaded {len(df_clean)} data points from sheet '{sheet_name}'")
+        print(f"✓ Loaded {len(df_clean)} data points from sheet '{sheet_name}'")
     
     return model_data
 
@@ -109,9 +111,13 @@ def create_interpolated_lookup_table(model_data: Dict, target_tokens: List[int] 
 
 def main():
     """Generate lookup table from actual Excel data."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Generate energy lookup tables')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
+    args = parser.parse_args()
     
     repo_root = Path(__file__).resolve().parents[3]
-    # Prefer root outputs/prefill first
     possible_paths = [
         str(repo_root / "outputs/prefill/energy_performance_correlation_prefill.xlsx"),
         str(repo_root / "outputs/prefill/energy_performance_correlation.xlsx"),
@@ -127,8 +133,8 @@ def main():
             break
     
     if excel_file is None:
-        print("❌ Could not find energy_performance_correlation.xlsx")
-        print("📍 Please provide the correct path to the Excel file")
+        print("✗ Could not find energy_performance_correlation.xlsx")
+        print("Please provide the correct path to the Excel file")
         return
     
     print(f"Reading data from: {excel_file}")
@@ -137,10 +143,10 @@ def main():
         model_data = read_energy_data_from_excel(excel_file)
         
         if not model_data:
-            print("❌ No valid model data found in Excel file")
+            print("✗ No valid model data found in Excel file")
             return
         
-        print("\n🔧 Creating lookup tables...")
+        print("\nCreating lookup tables...")
         
         table_lookup = create_lookup_table_from_data(model_data)
         
@@ -154,23 +160,24 @@ def main():
         with open(complete_file, 'w') as f:
             json.dump(table_lookup, f, indent=2)
         
-        with open(interpolated_file, 'w') as f:
-            json.dump(interpolated_lookup, f, indent=2)
+        # with open(interpolated_file, 'w') as f:
+        #     json.dump(interpolated_lookup, f, indent=2)
         
         print(f"Saved complete data lookup to: {complete_file}")
         print(f"Saved interpolated lookup to: {interpolated_file}")
         
-        # Show preview of complete table structure
-        print("\nComplete lookup table structure:")
-        for model_name, data in table_lookup.items():
-            print(f"{model_name}: {len(data['input_tokens'])} data points")
-            print(f"  Columns: {list(data.keys())}")
-            print(f"  Input token range: {min(data['input_tokens'])} - {max(data['input_tokens'])}")
+        if args.verbose:
+            # Show preview of complete table structure
+            print("\nComplete lookup table structure:")
+            for model_name, data in table_lookup.items():
+                print(f"{model_name}: {len(data['input_tokens'])} data points")
+                print(f"  Columns: {list(data.keys())}")
+                print(f"  Input token range: {min(data['input_tokens'])} - {max(data['input_tokens'])}")
         
         return table_lookup, interpolated_lookup
         
     except Exception as e:
-        print(f"❌ Error processing data: {e}")
+        print(f"✗ Error processing data: {e}")
         return None
 
 if __name__ == "__main__":

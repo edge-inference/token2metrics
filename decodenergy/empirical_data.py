@@ -27,14 +27,49 @@ import numpy as np
 from scipy.optimize import curve_fit
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+from datetime import datetime
+
+_config_path = Path(__file__).resolve().parent.parent / "config"
+if str(_config_path) not in sys.path:
+    sys.path.insert(0, str(_config_path))
+
+try:
+    from common import get_decode_paths
+    _USE_COMMON_CONFIG = True
+except ImportError:
+    _USE_COMMON_CONFIG = False
+
+
+def get_decode_data_dir() -> Path:
+    """Get decode data directory using centralized config or fallback."""
+    if _USE_COMMON_CONFIG:
+        paths = get_decode_paths()
+        return paths['input_dir']
+    else:
+        repo_root = Path(__file__).resolve().parents[3]
+        return repo_root / "data/synthetic/gpu/decode"
+
+
+def get_decode_output_dir() -> Path:
+    """Get decode output directory using centralized config or fallback."""
+    if _USE_COMMON_CONFIG:
+        paths = get_decode_paths()
+        return paths['output_dir']
+    else:
+        repo_root = Path(__file__).resolve().parents[3]
+        return repo_root / "outputs/decode"
 
 class IndividualExponentialModels:
     """Extract individual exponential models for each configuration"""
     
-    def __init__(self, data_root: str = "../datasets/synthetic/gpu/decode/fine/", verbose: bool = False):
-        self.data_root = Path(data_root)
+    def __init__(self, data_root: str = None, verbose: bool = False):
+        if data_root is None:
+            self.data_root = get_decode_data_dir()
+        else:
+            self.data_root = Path(data_root)
         self.models = {}
         self.verbose = verbose
         
@@ -78,9 +113,7 @@ class IndividualExponentialModels:
     def get_performance_data(self, energy_csv: Path) -> Tuple[Optional[float], Optional[str]]:
         """Get decode time and actual model name from corresponding performance CSV file"""
         try:
-            # Convert energy filename to performance filename
-            # energy_synthetic_analysis_in128_out128_20250819_213948.csv
-            # -> performance_synthetic_analysis_in128_out128_20250819_213948.csv
+
             perf_filename = energy_csv.name.replace('energy_', 'performance_')
             perf_path = energy_csv.parent / perf_filename
             
@@ -110,10 +143,8 @@ class IndividualExponentialModels:
             df = pd.read_csv(energy_csv, comment='/')
             if len(df) < 3:
                 if self.verbose:
-                    print(f"       ❌ Too few data points: {len(df)} < 3")
-                # Still extract basic info for these short sequences
+                    print(f"       ✗ Too few data points: {len(df)} < 3")
                 try:
-                    # Parse timestamps and power for basic energy calculation
                     times = pd.to_datetime(df['timestamp'], format='%m-%d-%Y %H:%M:%S', errors='coerce')
                     if times.isna().all():
                         times = pd.to_datetime(df['timestamp'], errors='coerce')
@@ -122,25 +153,21 @@ class IndividualExponentialModels:
                         sec = (times - times.iloc[0]).dt.total_seconds().values
                         powers_w = (df['vdd_gpu_soc_current_mw'] / 1000).values
                         
-                        # Extract configuration
                         input_tokens, output_tokens = self.extract_token_config(energy_csv.name)
                         if input_tokens is not None and output_tokens is not None:
-                            # Basic energy calculation 
                             tot_gpu_energy_calc = self.calculate_total_gpu_energy(powers_w, sec)
                             
-                            # Get decode time and model name if available
                             actual_decode_time, actual_model_name = self.get_performance_data(energy_csv)
                             decode_time_for_energy = actual_decode_time if actual_decode_time is not None else sec[-1] if len(sec) > 0 else 0
                             final_model_name = actual_model_name if actual_model_name else model_name
                             
-                            # Calculate avg_decode_energy even without exponential fit  
                             avg_decode_energy_calc = self.calculate_avg_decode_energy(powers_w, decode_time_for_energy)
                             
                             if self.verbose:
                                 print(f"       ✓ Basic energy only: {tot_gpu_energy_calc:.1f}J")
                             
                             return {
-                                'model_name': final_model_name,  # Will be removed later to avoid redundancy
+                                'model_name': final_model_name,  
                                 'input_tokens': input_tokens,
                                 'output_tokens': output_tokens,
                                 'P_inf': None,
@@ -153,33 +180,30 @@ class IndividualExponentialModels:
                                 'decode_time': round(decode_time_for_energy, 2),
                                 'monitoring_time': round(sec[-1], 2) if len(sec) > 0 else None,
                                 'tot_gpu_energy': round(tot_gpu_energy_calc, 2),
-                                'decode_energy': None,  # Can't calculate without exponential fit
+                                'decode_energy': None,  
                                 'avg_decode_energy': round(avg_decode_energy_calc, 2),
-                                'e_total_less_e_decode': None,  # Can't calculate without decode_energy
-                                'e_decode_vs_e_avg_diff': None  # Can't calculate without decode_energy
+                                'e_total_less_e_decode': None,  
+                                'e_decode_vs_e_avg_diff': None  
                             }
                 except Exception as e:
                     if self.verbose:
-                        print(f"       ❌ Could not extract basic info: {e}")
+                        print(f"       ✗ Could not extract basic info: {e}")
                 
                 return None
                 
-            # Parse timestamps and power
             times = pd.to_datetime(df['timestamp'], format='%m-%d-%Y %H:%M:%S', errors='coerce')
             if times.isna().all():
-                # Try fallback parsing
                 times = pd.to_datetime(df['timestamp'], errors='coerce')
                 if times.isna().all():
                     if self.verbose:
-                        print(f"       ❌ Cannot parse timestamps")
+                        print(f"       ✗ Cannot parse timestamps")
                     return None
                 
             sec = (times - times.iloc[0]).dt.total_seconds().values
             
-            # Check if we have GPU SOC power data
             if 'vdd_gpu_soc_current_mw' not in df.columns:
                 if self.verbose:
-                    print(f"       ❌ Missing vdd_gpu_soc_current_mw column")
+                    print(f"       ✗ Missing vdd_gpu_soc_current_mw column")
                 return None
                 
             powers_w = (df['vdd_gpu_soc_current_mw'] / 1000).values
@@ -188,37 +212,31 @@ class IndividualExponentialModels:
             input_tokens, output_tokens = self.extract_token_config(energy_csv.name)
             if input_tokens is None or output_tokens is None:
                 if self.verbose:
-                    print(f"       ❌ Cannot extract token config from filename")
+                    print(f"       ✗ Cannot extract token config from filename")
                 return None
             
-            # Get actual decode time and model name from performance file
             actual_decode_time, actual_model_name = self.get_performance_data(energy_csv)
-            monitoring_duration = sec[-1]  # Total energy monitoring window
+            monitoring_duration = sec[-1]  
             
-            # Use actual decode time if available, otherwise fall back to monitoring duration
             decode_time_for_energy = actual_decode_time if actual_decode_time is not None else monitoring_duration
             
-            # Use actual model name if available, otherwise use fallback
             final_model_name = actual_model_name if actual_model_name else model_name
             
-            # Check if sequence is too short for meaningful exponential fitting
             if monitoring_duration < 1.0:
                 if self.verbose:
-                    print(f"       ❌ Duration too short: {monitoring_duration:.2f}s < 1.0s")
+                    print(f"       ✗ Duration too short: {monitoring_duration:.2f}s < 1.0s")
                 return None
                 
             if actual_decode_time is not None and self.verbose:
                 print(f"       ✓ Using decode time: {actual_decode_time:.2f}s (monitoring: {monitoring_duration:.2f}s)")
                 
-            # Check power variation - if too small, exponential fit may not be meaningful
             power_range = powers_w.max() - powers_w.min()
             power_mean = powers_w.mean()
-            if power_range < power_mean * 0.05:  # Less than 5% variation
+            if power_range < power_mean * 0.05:  
                 if self.verbose:
-                    print(f"       ❌ Power variation too small: {power_range:.2f}W ({power_range/power_mean*100:.1f}% of mean)")
+                    print(f"       ✗ Power variation too small: {power_range:.2f}W ({power_range/power_mean*100:.1f}% of mean)")
                 return None
             
-            # Initial parameter estimates with better logic
             P_initial = powers_w[0]
             P_final = powers_w[-1] 
             P_mean = powers_w.mean()
@@ -241,24 +259,20 @@ class IndividualExponentialModels:
                 P_inf_init = max(P_mean, P_initial * 0.9)
                 delta_P_init = max(power_range * 0.3, 0.5)
             
-            tau_init = max(monitoring_duration / 4, 0.3)  # Quarter of monitoring time or minimum
+            tau_init = max(monitoring_duration / 4, 0.3)  
             
-            # Fit exponential model with realistic bounds for 65W max system
-            tau_upper = max(monitoring_duration, 30.0)  # Allow tau to be at least as long as the monitoring
+            tau_upper = max(monitoring_duration, 30.0)  
             bounds = (
-                [1.0, 0.01, 0.1],  # Lower bounds: min 1W, 0.01W deficit, 0.1s tau
-                [65.0, 60.0, tau_upper]  # Upper bounds: 65W max power, 60W max deficit
+                [1.0, 0.01, 0.1],  
+                [65.0, 60.0, tau_upper] 
             )
             
-            # Ensure initial guess is within bounds
             P_inf_init = np.clip(P_inf_init, bounds[0][0], bounds[1][0])
             delta_P_init = np.clip(delta_P_init, bounds[0][1], bounds[1][1]) 
             tau_init = np.clip(tau_init, bounds[0][2], bounds[1][2])
             
-            # Validate that our model makes physical sense
             expected_initial = P_inf_init - delta_P_init
-            if abs(expected_initial - P_initial) > 5.0:  # More than 5W difference
-                # Adjust parameters to better match initial conditions
+            if abs(expected_initial - P_initial) > 5.0:  
                 delta_P_init = P_inf_init - P_initial
                 delta_P_init = np.clip(delta_P_init, bounds[0][1], bounds[1][1])
             
@@ -269,7 +283,7 @@ class IndividualExponentialModels:
                 p0=[P_inf_init, delta_P_init, tau_init],
                 bounds=bounds,
                 maxfev=5000,
-                method='trf'  # Trust Region Reflective - more robust
+                method='trf'  
             )
             
             P_inf_fit, delta_P_fit, tau_fit = popt
@@ -281,16 +295,14 @@ class IndividualExponentialModels:
             r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
             rmse = np.sqrt(np.mean((powers_w - p_pred) ** 2))
             
-            # Energy comparison using actual decode time for energy calculation
-            monitoring_time = sec[-1]  # Total monitoring window
-            tot_gpu_energy_calc = self.calculate_total_gpu_energy(powers_w, sec)  # Total measured energy
+            monitoring_time = sec[-1]  
+            tot_gpu_energy_calc = self.calculate_total_gpu_energy(powers_w, sec)  
             
-            # Use actual decode time for exponential energy model
             decode_energy_calc = self.exponential_energy_model(decode_time_for_energy, P_inf_fit, delta_P_fit, tau_fit)
             avg_decode_energy_calc = self.calculate_avg_decode_energy(powers_w, decode_time_for_energy)
             
             return {
-                'model_name': final_model_name,  # Will be removed later to avoid redundancy
+                'model_name': final_model_name, 
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
                 'P_inf': round(P_inf_fit, 3),
@@ -311,19 +323,16 @@ class IndividualExponentialModels:
             
         except Exception as e:
             if self.verbose:
-                print(f"       ❌ Exponential fit failed: {str(e)[:100]}")
+                print(f"       ✗ Exponential fit failed: {str(e)[:100]}")
                 
-                # Try to extract basic info for debugging
                 try:
                     if 'df' in locals() and 'sec' in locals() and 'powers_w' in locals():
                         print(f"       Data: {len(df)} points, {sec[-1]:.1f}s duration")
                         print(f"       Power: {powers_w.min():.1f}W to {powers_w.max():.1f}W")
                         
-                        # Check if this could be a simple linear or constant case
                         power_trend = powers_w[-1] - powers_w[0]
                         print(f"       Power trend: {power_trend:+.1f}W")
                         
-                        # For very short sequences with small output tokens, this is expected
                         if 'output_tokens' in locals() and output_tokens and output_tokens <= 16:
                             print(f"       Note: Very few output tokens ({output_tokens}), exponential fit often fails")
                 except:
@@ -335,7 +344,6 @@ class IndividualExponentialModels:
         """Process all model directories and extract exponential parameters"""
         results = {}
         
-        # Find all model directories (skip processed_results)
         for model_dir in self.data_root.iterdir():
             if not model_dir.is_dir() or model_dir.name == 'processed_results':
                 continue
@@ -345,53 +353,47 @@ class IndividualExponentialModels:
             
             model_results = []
             failed_configs = []
-            actual_model_name = None  # Will be determined from first performance file
+            actual_model_name = None 
             
-            # Find all energy CSV files in this model directory
             energy_files = list(model_dir.glob("energy_synthetic_analysis_*.csv"))
             print(f"  Found {len(energy_files)} energy CSV files")
             
             for i, energy_file in enumerate(energy_files):
                 if self.verbose:
                     print(f"  Processing: {energy_file.name}")
-                elif i > 0 and i % 20 == 0:  # Progress indicator every 20 files
+                elif i > 0 and i % 20 == 0: 
                     print(f"  Progress: {i}/{len(energy_files)} files processed...")
                 
                 result = self.fit_exponential_to_file(energy_file, fallback_model_name)
                 if result:
-                    # Use the first actual model name we find
                     if actual_model_name is None and 'model_name' in result:
                         actual_model_name = result['model_name']
                         if actual_model_name != fallback_model_name:
                             print(f"  ✓ Using model name: {actual_model_name}")
                     
-                    # Remove redundant model_name field from individual results
                     result.pop('model_name', None)
                     model_results.append(result)
                     
-                    # Format output differently for fitted vs fallback cases
                     if self.verbose:
                         if result['P_inf'] is not None:
-                            print(f"    ✅ P_∞={result['P_inf']}W, ΔP={result['delta_P']}W, τ={result['tau']}s, R²={result['r2']}")
+                            print(f"    ✓ P_∞={result['P_inf']}W, ΔP={result['delta_P']}W, τ={result['tau']}s, R²={result['r2']}")
                         else:
-                            print(f"    ✅ Basic energy: {result['tot_gpu_energy']}J (no exponential fit)")
+                            print(f"    ✓ Basic energy: {result['tot_gpu_energy']}J (no exponential fit)")
                 else:
-                    # Track failed configurations for analysis
                     input_tokens, output_tokens = self.extract_token_config(energy_file.name)
                     if input_tokens and output_tokens:
                         failed_configs.append(f"{input_tokens}→{output_tokens}")
                     if self.verbose:
-                        print(f"    ❌ Failed to fit")
+                        print(f"    ✗ Failed to fit")
             
             if model_results:
-                # Use actual model name as key, fallback to directory-based name
                 final_model_name = actual_model_name if actual_model_name else fallback_model_name
                 results[final_model_name] = model_results
                 
                 fitted_count = len([r for r in model_results if r['P_inf'] is not None])
                 fallback_count = len([r for r in model_results if r['P_inf'] is None])
                 
-                print(f"  ✅ Successfully processed {len(model_results)}/{len(energy_files)} configurations")
+                print(f"  ✓ Successfully processed {len(model_results)}/{len(energy_files)} configurations")
                 if fitted_count > 0 and fallback_count > 0:
                     print(f"    - Exponential fits: {fitted_count}")
                     print(f"    - Basic energy only: {fallback_count}")
@@ -401,21 +403,20 @@ class IndividualExponentialModels:
                     print(f"    - All basic energy only: {fallback_count}")
                     
                 if failed_configs:
-                    print(f"  ❌ Failed configurations: {', '.join(failed_configs[:10])}")
+                    print(f"  ✗ Failed configurations: {', '.join(failed_configs[:10])}")
                     if len(failed_configs) > 10:
                         print(f"      ... and {len(failed_configs)-10} more")
             else:
-                print(f"  ❌ No successful processing for {fallback_model_name}")
+                print(f"  ✗ No successful processing for {fallback_model_name}")
         
         return results
     
-    def save_results(self, results: Dict, output_file: str = "individual_exponential_models.json"):
+    def save_results(self, results: Dict, output_file: str = "empirical_data.json"):
         """Save results to JSON file with metadata header"""
-        output_path = Path("output") / output_file
+        output_path = get_decode_output_dir() / output_file
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Create JSON structure with metadata
-        from datetime import datetime
+        # metadata
         json_output = {
             "_metadata": {
                 "description": "Individual Exponential Power Models for Each Configuration",
@@ -474,7 +475,7 @@ class IndividualExponentialModels:
         with open(output_path, 'w') as f:
             json.dump(json_output, f, indent=2)
         
-        print(f"\n✅ Results saved to: {output_path}")
+        print(f"\n✓ Results saved to: {output_path}")
     
     def generate_summary_report(self, results: Dict) -> str:
         """Generate summary report of all models"""
@@ -505,14 +506,12 @@ class IndividualExponentialModels:
                     report.append(f"Average R²: {avg_r2:.3f}")
                     report.append(f"R² Range: {min(r2_values):.3f} - {max(r2_values):.3f}")
                     
-                    # Show best and worst fits (only from fitted configs)
                     best_config = max(fitted_configs, key=lambda x: x['r2'])
                     worst_config = min(fitted_configs, key=lambda x: x['r2'])
                     
                     report.append(f"Best fit: {best_config['input_tokens']}→{best_config['output_tokens']} (R²={best_config['r2']:.3f})")
                     report.append(f"Worst fit: {worst_config['input_tokens']}→{worst_config['output_tokens']} (R²={worst_config['r2']:.3f})")
                     
-                    # Analyze patterns in poor fits
                     poor_fits = [c for c in fitted_configs if c['r2'] < 0.7]
                     if poor_fits:
                         small_output = [c for c in poor_fits if c['output_tokens'] <= 32]
@@ -538,13 +537,12 @@ class IndividualExponentialModels:
             report.append(f"Excellent fits (R²>0.8): {good_fits}/{len(all_r2_values)} ({good_fits/len(all_r2_values)*100:.1f}%)")
             report.append(f"Decent fits (R²>0.6): {decent_fits}/{len(all_r2_values)} ({decent_fits/len(all_r2_values)*100:.1f}%)")
             
-            # Recommendations based on success rate
             if good_fits / len(all_r2_values) > 0.7:
-                report.append(f"\n✅ RECOMMENDATION: Exponential model works well for most configurations")
+                report.append(f"\n✓ RECOMMENDATION: Exponential model works well for most configurations")
             elif decent_fits / len(all_r2_values) > 0.6:
-                report.append(f"\n⚠️  RECOMMENDATION: Exponential model has mixed success - consider filtering")
+                report.append(f"\n! RECOMMENDATION: Exponential model has mixed success - consider filtering")
             else:
-                report.append(f"\n❌ RECOMMENDATION: Exponential model struggles - may need alternative approaches")
+                report.append(f"\n✗ RECOMMENDATION: Exponential model struggles - may need alternative approaches")
         
         return "\n".join(report)
 
@@ -556,40 +554,35 @@ def main():
     parser = argparse.ArgumentParser(description='Extract individual exponential models for each configuration')
     parser.add_argument('--verbose', '-v', action='store_true', 
                        help='Show detailed progress for each file')
-    parser.add_argument('--data-root', default="../datasets/synthetic/gpu/decode/fine/",
-                       help='Root directory containing energy data')
+    parser.add_argument('--data-root', default=None,
+                       help='Root directory containing energy data (auto-detected if not specified)')
     
     args = parser.parse_args()
     
-    print("🔥 INDIVIDUAL EXPONENTIAL MODELS EXTRACTION")
+    print("INDIVIDUAL EXPONENTIAL MODELS EXTRACTION")
     print("=" * 50)
     
-    # Initialize extractor
     extractor = IndividualExponentialModels(data_root=args.data_root, verbose=args.verbose)
     
-    # Process all models
     results = extractor.process_all_models()
     
     if not results:
-        print("❌ No models found or processed successfully")
+        print("✗ No models found or processed successfully")
         return
     
-    # Save results
     extractor.save_results(results)
     
-    # Generate and display summary
     summary = extractor.generate_summary_report(results)
     print("\n" + summary)
     
-    # Save summary to file
-    summary_path = Path("output/individual_models_summary.txt")
+    summary_path = get_decode_output_dir() / "empirical_data_summary.txt"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     with open(summary_path, 'w') as f:
         f.write(summary)
     
-    print(f"\n📊 Summary report saved to: {summary_path}")
-    print("\n🎯 Next steps:")
-    print("1. Review output/individual_exponential_models.json")
+    print(f"\nSummary report saved to: {summary_path}")
+    print("\nNext steps:")
+    print("1. Review empirical_data.json")
     print("2. Check R² values for model quality")
     print("3. Use exponential energy formula instead of P×T")
 

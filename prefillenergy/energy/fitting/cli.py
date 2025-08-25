@@ -45,10 +45,10 @@ def main():
         print("Please run the energy processing pipeline first to generate the correlation file.")
         return 1
     
-    print("🔧 Energy and Power Fitting Analysis")
+    print("Energy and Power Fitting Analysis")
     print("=" * 50)
-    print(f"📊 Input file: {correlation_file}")
-    print(f"📁 Output directory: {args.output_dir}")
+    print(f"Input file: {correlation_file}")
+    print(f"Output directory: {args.output_dir}")
     print()
     
     # Initialize fitter
@@ -59,12 +59,12 @@ def main():
     results = fitter.fit_all_models(str(correlation_file))
     
     if not results:
-        print("❌ No models were successfully fitted.")
+        print("✗ No models were successfully fitted.")
         return 1
     
     # Print results summary
     print()
-    print("✅ Successfully fitted models:")
+    print("✓ Successfully fitted models:")
     for model_name, model_results in results.items():
         power_r2 = model_results.get('power_fit', {}).get('r2_score', 0.0)
         energy_r2 = model_results.get('energy_fit', {}).get('r2_score', 0.0) if model_results.get('energy_fit') else 0.0

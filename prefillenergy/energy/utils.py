@@ -36,7 +36,8 @@ class PathManager:
     def get_output_dir(cls) -> Path:
         """Get the current output directory."""
         if cls._output_dir is None:
-            cls._output_dir = cls.BASE_DIR.parent / "output"
+            repo_root = cls.BASE_DIR.resolve().parents[3]  
+            cls._output_dir = repo_root / "outputs" / "prefill"
         return cls._output_dir
     
     @classmethod
@@ -142,11 +143,7 @@ def load_dataframe(filename: str, sheet_name: Optional[str] = None) -> pd.DataFr
 def save_figure(figure, filename: str, chart_type: str = "general", dpi: int = 300) -> Path:
     """
     Save pdf figure to a file in the insight charts directory.
-    
-
     """
-
-    
     file_path = PathManager.get_chart_path(filename, chart_type)
     figure.savefig(file_path, dpi=dpi, bbox_inches="tight")
     

@@ -27,7 +27,7 @@ These metrics are automatically included in:
 
 ## Advanced Energy CLI
 ```bash
-python energy_cli.py analyze --energy-dir ../tegra/scaling --performance-file results/energy/scaling_summary.xlsx
+python energy_cli.py analyze --energy-dir data/synthetic/gpu/scaling/ --performance-file outputs/energy/scaling_summary.xlsx
 ```
 
 ## Standalone Plotting

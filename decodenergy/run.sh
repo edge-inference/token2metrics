@@ -16,15 +16,23 @@ echo "Input dir: $DECODE_INPUT_DIR"
 echo "Output dir: $DECODE_OUTPUT_DIR"
 
 $PYTHON -m energy.cli --base-dir "$DECODE_INPUT_DIR"
-$PYTHON -m energy.cli --correlate --energy-dir "$DECODE_INPUT_DIR" --performance-file "$DECODE_OUTPUT_DIR/all_results_by_model_*.xlsx"
 
-# Copy correlation Excel to root outputs with suffix
-LATEST_CORR=$(ls -1 output/energy_performance_correlation*.xlsx 2>/dev/null | tail -n 1 || true)
-if [ -n "$LATEST_CORR" ]; then
-    cp "$LATEST_CORR" "$ROOT_OUTPUTS_DIR/energy_performance_correlation_decode.xlsx"
+PERF_FILE=$(ls "$DECODE_OUTPUT_DIR"/all_results_by_model_*.xlsx 2>/dev/null | head -n 1)
+if [ -n "$PERF_FILE" ]; then
+    $PYTHON -m energy.cli --correlate --energy-dir "$DECODE_INPUT_DIR" --performance-file "$PERF_FILE"
+else
+    echo "! Warning: No performance file found matching $DECODE_OUTPUT_DIR/all_results_by_model_*.xlsx"
+    echo "Skipping correlation analysis"
 fi
+
 $PYTHON -m energy.cli --insights --verbose
-$PYTHON -m energy.cli --fitting --correlation-file "$ROOT_OUTPUTS_DIR/energy_performance_correlation_decode.xlsx"
+
+LATEST_CORR=$(ls -1 "$ROOT_OUTPUTS_DIR"/energy_performance_correlation*.xlsx 2>/dev/null | tail -n 1 || true)
+if [ -n "$LATEST_CORR" ]; then
+    $PYTHON -m energy.cli --fitting --correlation-file "$LATEST_CORR"
+else
+    echo "! Warning: No correlation file found for fitting analysis"
+fi
 
 if [ -f "empirical_data.py" ]; then
     $PYTHON empirical_data.py

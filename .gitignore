@@ -16,6 +16,9 @@ raw/
 demo_outputs/
 outputs/
 
+
+*=*
+
 processed_results/
 *.so
 

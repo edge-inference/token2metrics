@@ -1,6 +1,6 @@
 #!/bin/env python3
 """
-Figure2
+Prefill token analysis
 """
 import numpy as np
 import pandas as pd
@@ -9,10 +9,10 @@ from pathlib import Path
 import json
 
 script_dir = Path(__file__).parent.parent.resolve()
-xlsx_candidates = list((script_dir / "datasets/synthetic/gpu/prefill_padded/processed_results").glob("all_results_by_model*.xlsx"))
+xlsx_candidates = list((script_dir / "data/synthetic/gpu/prefill/processed").glob("all_results_by_model*.xlsx"))
 if not xlsx_candidates:
     raise FileNotFoundError(
-                f"No matching XLSX file found in processed_results/ (searched in {script_dir})"
+                f"No matching XLSX file found in processed/ (searched in {script_dir})"
         )
 JETSON_XLSX_PATH = xlsx_candidates[0]
 

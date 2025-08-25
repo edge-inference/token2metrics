@@ -399,7 +399,9 @@ class EnergyFitter:
                     "amplitude": round(float(params[0]), 6),
                     "decay_rate": round(float(params[1]), 6), 
                     "baseline": round(float(params[2]), 6)
-                },
+                }
+            }
+            
     def generate_lookup_table(self, results: Dict, input_lengths: List[int] = None) -> Dict:
         """
         Generate a lookup table for energy per token values without units.

@@ -1,62 +1,37 @@
-# Energy Analysis System
+# Prefill Energy Analysis
 
-
-## 🔧 Installation
-
-```bash
-pip install pandas openpyxl matplotlib seaborn numpy
-```
-
-## 🚀 Usage
+## Commands
 
 ### Basic Energy Analysis
 ```bash
-# Process raw energy CSV files and generate summary metrics
-python -m energy.cli --base-dir ../datasets/synthetic/gpu/prefill_padded/finegrain
+python -m energy.cli --base-dir /path/to/data/synthetic/gpu/prefill
 ```
 
 ### Energy-Performance Correlation
 ```bash
-# Correlate energy with performance metrics
-python -m energy.cli --correlate --energy-dir ../datasets/synthetic/gpu/prefill_padded/finegrain \
-  --performance-file ../datasets/synthetic/gpu/prefill_padded/finegrain/processed_results/all_results_by_model_*.xlsx
+python -m energy.cli --correlate --energy-dir /path/to/data/synthetic/gpu/prefill \
+  --performance-file /path/to/processed/all_results_by_model_*.xlsx
 ```
 
-### Power Insights & Visualizations
+### Power Insights
 ```bash
 python -m energy.cli --insights --verbose
 ```
 
 ### Fitting Analysis
 ```bash
-# Fit mathematical models to energy and power data
-python -m energy.cli --fitting
+python -m energy.cli --fitting --correlation-file /path/to/correlation.xlsx
 ```
 
-### Advanced Options
+### Complete Pipeline
 ```bash
-# Specify custom paths
-python -m energy.cli --correlate --energy-dir ./custom/path --performance-file ./results.xlsx
-
-# Generate individual model plots
-python -m energy.cli --fitting --plot-individual
-
-# Enable verbose output
-python -m energy.cli --insights --verbose
+# Run the full pipeline using the run.sh script
+./run.sh
 ```
 
-## 📈 Metrics
+## Output Locations
 
-- **Energy (J/token)**: Energy consumption per token processed
-- **Power (W)**: Average and peak power consumption 
-- **Efficiency**: Energy consumption vs model size and token count
-- **Speed**: Tokens processed per second
-
-## 📁 Output Files
-
-- Energy summary: `results/energy_model_summary.xlsx`
-- Correlation data: `results/energy_performance_correlation_*.xlsx`
-- Fit models: `results/fitting/fitting_summary.json`
-- Visualizations: `results/insight_charts/*.png`, `results/fitting/*.pdf`
-
-For more details on implementation, refer to the code documentation in each module. 
+- Energy results: `outputs/prefill/`
+- Correlation data: `outputs/prefill/energy_performance_correlation.xlsx`
+- Fitting results: `outputs/prefill/fitting/`
+- Charts: `outputs/prefill/charts/` 

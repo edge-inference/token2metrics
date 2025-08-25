@@ -73,7 +73,9 @@ class PathManager:
     def get_output_dir(cls) -> Path:
         """Get the current output directory."""
         if cls._output_dir is None:
-            cls._output_dir = cls.BASE_DIR.parent / "output"
+            repo_root = cls.BASE_DIR.resolve().parents[3] 
+            cls._output_dir = repo_root / "outputs" / "decode"
+            cls._output_dir.mkdir(parents=True, exist_ok=True)
         return cls._output_dir
     
     @classmethod

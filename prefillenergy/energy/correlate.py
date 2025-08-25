@@ -281,12 +281,12 @@ class EnergyPerformanceCorrelator:
         return pd.DataFrame(combined_rows)
     
     def generate_correlation_analysis(self) -> pd.DataFrame:
-        print("🔄 Starting Energy-Performance Correlation Analysis")
+        print("Starting Energy-Performance Correlation Analysis")
         print("="*60)
         self.performance_data = self.load_performance_data()
         energy_data = self.load_processed_energy_data()
         if not energy_data:
-            print("❌ No processed energy data found. Please run basic energy analysis first.")
+            print("✗ No processed energy data found. Please run basic energy analysis first.")
             return pd.DataFrame()
         all_combined_data = []
         for model_name in sorted(self.performance_data.keys()):
@@ -306,7 +306,7 @@ class EnergyPerformanceCorrelator:
                 total_questions = len(final_df)
                 matched_questions = len(final_df[final_df['energy_found'] == True])
                 zero_power_questions = len(final_df[final_df['avg_power_w'] == 0])
-                print(f"\n✅ Correlation complete!")
+                print(f"\n✓ Correlation complete!")
                 print(f"Total questions analyzed: {total_questions}")
                 print(f"Successfully matched: {matched_questions}/{total_questions} ({matched_questions/total_questions*100:.1f}%)")
                 print(f"Zero power questions: {zero_power_questions} (should be 0!)")

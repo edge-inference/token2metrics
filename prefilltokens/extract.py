@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Extract the cherry-picked points used for fitting and save to CSV.
-These are the closest points to target values (64, 128, 256, 384, 512, 1024).
+Extract the synthetically generated points used for fitting and save to CSV.
+These are for input lengths in the multiples of 128 tokens.
 """
 import numpy as np
 import pandas as pd
@@ -9,10 +9,10 @@ from pathlib import Path
 
 # Configuration
 script_dir = Path(__file__).parent.parent.resolve()
-xlsx_candidates = list((script_dir / "datasets/gpu/prefill_all/processed_results").glob("all_results_by_model*.xlsx"))
+xlsx_candidates = list((script_dir / "data/synthetic/gpu/prefill/processed").glob("all_results_by_model*.xlsx"))
 if not xlsx_candidates:
     raise FileNotFoundError(
-        f"No matching XLSX file found in processed_results/ (searched in {script_dir})"
+        f"No matching XLSX file found in processed/ (searched in {script_dir})"
     )
 JETSON_XLSX_PATH = xlsx_candidates[0]
 

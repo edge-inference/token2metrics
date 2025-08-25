@@ -1,56 +1,51 @@
-# Energy Analysis System
+# Decode Energy Analysis
 
-
-## 🔧 Installation
-
-```bash
-pip install pandas openpyxl matplotlib seaborn numpy
-```
-
-## 🚀 Usage
+## Commands
 
 ### Basic Energy Analysis
 ```bash
-python -m energy.cli --base-dir ../dataset/synthetic/gpu/decode/fine
+python -m energy.cli --base-dir /path/to/data/synthetic/gpu/decode
 ```
 
 ### Energy-Performance Correlation
 ```bash
-python -m energy.cli --correlate --energy-dir ../datasets/synthetic/gpu/decode/fine \
-  --performance-file ../datasets/synthetic/gpu/decode/fine/processed_results/all_results_by_model_*.xlsx
+python -m energy.cli --correlate --energy-dir /path/to/data/synthetic/gpu/decode \
+  --performance-file /path/to/processed/all_results_by_model_*.xlsx
 ```
 
-### Power Insights & Visualizations
+### Power Insights
 ```bash
 python -m energy.cli --insights --verbose
 ```
 
 ### Fitting Analysis
 ```bash
-
+python -m energy.cli --fitting --correlation-file /path/to/correlation.xlsx
 ```
 
-### Advanced Options
+### Complete Pipeline
 ```bash
-python -m energy.cli --correlate --energy-dir ../dataset/figure3 --performance-file ./results.xlsx
-
-python -m energy.cli --fitting --plot-individual
-
-python -m energy.cli --insights --verbose
+# Run the full pipeline using the run.sh script
+./run.sh
 ```
 
-## 📈 Metrics
+### Individual Exponential Models
+```bash
+# Extract exponential power models for each configuration
+python empirical_data.py --verbose
+```
 
-- **Energy (J/token)**: Energy consumption per decode token processed
-- **Power (W)**: Average and peak power consumption 
-- **Efficiency**: Energy consumption vs model size and decode token count
-- **Speed**: Decode tokens processed per second
+### Generate Lookup Tables
+```bash
+# Create lookup tables from correlation data
+python generate_lookup_table.py
+```
 
-## 📁 Output Files
+## Output Locations
 
-- Energy summary: `energy_results/energy_model_summary.xlsx`
-- Correlation data: `energy_results/energy_performance_correlation_*.xlsx`
-- Fit models: `fitting/fitting_summary.json`
-- Visualizations: `energy_results/insight_charts/*.png`, `fitting/*.pdf`
-
-For more details on implementation, refer to the code documentation in each module. 
+- Energy results: `outputs/decode/`
+- Correlation data: `outputs/decode/energy_performance_correlation.xlsx`
+- Fitting results: `outputs/decode/fitting/`
+- Charts: `outputs/decode/charts/`
+- Empirical data: `outputs/decode/empirical_data.json`
+- Lookup tables: `outputs/decode/fitting/decode_*_lookup.json` 

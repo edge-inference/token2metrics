@@ -15,12 +15,13 @@ from .utils import PathManager
 class PowerInsightsAnalyzer:
     """Main analyzer for power consumption insights with modular visualization."""
     
-    def __init__(self, target_token_ranges: List[int] = None, tolerance: int = 10):
+    def __init__(self, target_token_ranges: List[int] = None, tolerance: int = 10, verbose: bool = False):
         """Initialize with target ranges and tolerance."""
         self.target_token_ranges = target_token_ranges or [3, 24, 128, 256, 384, 512, 640, 1013]
         self.tolerance = tolerance
+        self.verbose = verbose
         
-        self.analyzer = PowerAnalyzer(self.target_token_ranges, self.tolerance)
+        self.analyzer = PowerAnalyzer(self.target_token_ranges, self.tolerance, verbose)
         
         self.power_charts = PowerScalingCharts()
         self.heatmap = EfficiencyHeatmap()
