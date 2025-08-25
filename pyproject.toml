@@ -31,13 +31,31 @@ dev = [
   "jupyter>=1.0.0"
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["*"]
-exclude = ["tests*", "datasets*", "archive*"]
-
-[tool.setuptools.package-dir]
-"" = "."
+[tool.setuptools]
+packages = [
+    "token2metrics",
+    "config", 
+    "decodenergy",
+    "decodenergy.energy",
+    "decodenergy.energy.fitting",
+    "decodenergy.energy.visualization",
+    "prefillenergy",
+    "prefillenergy.energy", 
+    "prefillenergy.energy.fitting",
+    "prefillenergy.energy.visualization",
+    "scalingenergy",
+    "scalingenergy.analyzers",
+    "scalingenergy.energy",
+    "scalingenergy.exporters", 
+    "scalingenergy.processors",
+    "scalingenergy.utils",
+    "planner",
+    "planner.config",
+    "planner.plots",
+    "planner.processing",
+    "decodetokens",
+    "prefilltokens"
+]
 
 [tool.pylint.messages_control]
 disable = "all"
