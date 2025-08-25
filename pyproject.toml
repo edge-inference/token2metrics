@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Translate tokens to latency/energy metrics for edge inference"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "MIT" }
+license = {text = "BSD-3-Clause"}
 authors = [
     {name = "Benjamin Kubwimana", email = "bkubwimana@nvidia.com"},
     {name = "Qijing Huang", email = "jennyhuang@nvidia.com"},
@@ -32,30 +32,11 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = [
-    "token2metrics",
-    "config", 
-    "decodenergy",
-    "decodenergy.energy",
-    "decodenergy.energy.fitting",
-    "decodenergy.energy.visualization",
-    "prefillenergy",
-    "prefillenergy.energy", 
-    "prefillenergy.energy.fitting",
-    "prefillenergy.energy.visualization",
-    "scalingenergy",
-    "scalingenergy.analyzers",
-    "scalingenergy.energy",
-    "scalingenergy.exporters", 
-    "scalingenergy.processors",
-    "scalingenergy.utils",
-    "planner",
-    "planner.config",
-    "planner.plots",
-    "planner.processing",
-    "decodetokens",
-    "prefilltokens"
-]
+packages = ["token2metrics"]
+package-dir = {"token2metrics" = "."}
+
+[tool.setuptools.package-data]
+"token2metrics" = ["**/*"]
 
 [tool.pylint.messages_control]
 disable = "all"
