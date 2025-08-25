@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=64.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -33,8 +33,11 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["token2metrics*", "**/*"]
+include = ["*"]
 exclude = ["tests*", "datasets*", "archive*"]
+
+[tool.setuptools.package-dir]
+"" = "."
 
 [tool.pylint.messages_control]
 disable = "all"
